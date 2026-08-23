@@ -1,4 +1,5 @@
 import { AgentId, type AgentRecord, type SquadExecutionPlan, type SquadMemberHandoff, type SquadPlanAssignment, type SquadRecord } from '../types.ts'
+import { DEFAULT_HANDOFF_SUMMARY_MAX_CHARS, MAX_HANDOFF_SUMMARY_MAX_CHARS, MIN_HANDOFF_SUMMARY_MAX_CHARS } from '../limits.ts'
 
 function boundedExcerpt(value: string, max: number): string {
   if (value.length <= max) return value
@@ -156,14 +157,23 @@ export function executionWaves(assignments: readonly SquadPlanAssignment[]): Squ
 }
 
 /** Keep model-facing handoffs bounded even when a member returns a very large artifact or log. */
-export function normalizeHandoff(value: unknown, fallbackText: string): SquadMemberHandoff {
+export function normalizeHandoff(
+  value: unknown,
+  fallbackText: string,
+  summaryMaxChars = DEFAULT_HANDOFF_SUMMARY_MAX_CHARS,
+): SquadMemberHandoff {
+  if (!Number.isInteger(summaryMaxChars)
+    || summaryMaxChars < MIN_HANDOFF_SUMMARY_MAX_CHARS
+    || summaryMaxChars > MAX_HANDOFF_SUMMARY_MAX_CHARS) {
+    throw new RangeError(`handoff summary limit must be ${MIN_HANDOFF_SUMMARY_MAX_CHARS}-${MAX_HANDOFF_SUMMARY_MAX_CHARS} characters`)
+  }
   const raw = value !== null && typeof value === 'object' ? value as Record<string, unknown> : {}
   const strings = (candidate: unknown, max: number): string[] => Array.isArray(candidate)
     ? candidate.filter((item): item is string => typeof item === 'string').slice(0, max).map(item => item.slice(0, 1_000))
     : []
   const summary = typeof raw['summary'] === 'string' && raw['summary'].trim() !== ''
-    ? raw['summary'].trim().slice(0, 4_000)
-    : fallbackText.trim().slice(0, 4_000)
+    ? raw['summary'].trim().slice(0, summaryMaxChars)
+    : fallbackText.trim().slice(0, summaryMaxChars)
   return {
     summary: summary || 'Member completed without a textual summary.',
     deliverables: strings(raw['deliverables'], 12),

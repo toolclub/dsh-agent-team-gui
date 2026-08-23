@@ -68,6 +68,8 @@ export interface SquadRecord {
   readonly memberTimeoutMs?: number
   /** Soft provider-reported token ceiling for the whole run. */
   readonly tokenBudget?: number
+  /** Per-member handoff summary ceiling in characters. Raw output remains complete. */
+  readonly handoffSummaryMaxChars?: number
   /** When an ordinary top-level message should start this squad. Missing preserves v0.4 `always`. */
   readonly activationMode?: 'always' | 'smart' | 'manual'
   /** Whether planning must use every member or may choose a focused subset. */

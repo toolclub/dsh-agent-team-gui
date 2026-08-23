@@ -6,7 +6,7 @@ import { completionRate, planStages } from '../src/client/view-models.ts'
 import { CLIENT_STYLES } from '../src/client/styles.ts'
 
 const VALID_SNAPSHOT = {
-  apiVersion: 3,
+  apiVersion: 4,
   agents: [], squads: [], models: [], tools: [],
   capabilities: { smartActivation: true, dags: true, qualityGate: true, backgroundRuns: true, recipes: true, remoteRecipeFetch: false, insights: true, reproducibleVersions: true },
   defaults: { executionMode: 'serial', fixedOrderExecutionMode: 'serial', contextMode: 'fork', planningContext: 'full', plannerMaxTokens: 2_048 },
@@ -58,6 +58,10 @@ describe('client domain validation and view models', () => {
     expect(validateSquad({ ...squad, tokenBudget: '100000001' }, []).errors.tokenBudget).toBe('budgetRange')
     expect(validateSquad({ ...squad, memberTimeoutMs: '3600000' }, []).valid).toBe(true)
     expect(validateSquad({ ...squad, memberTimeoutMs: '3600001' }, []).errors.memberTimeoutMs).toBe('timeoutRange')
+    expect(validateSquad({ ...squad, handoffSummaryMaxChars: '1000' }, []).valid).toBe(true)
+    expect(validateSquad({ ...squad, handoffSummaryMaxChars: '32000' }, []).valid).toBe(true)
+    expect(validateSquad({ ...squad, handoffSummaryMaxChars: '999' }, []).errors.handoffSummaryMaxChars).toBe('handoffSummaryRange')
+    expect(validateSquad({ ...squad, handoffSummaryMaxChars: '32001' }, []).errors.handoffSummaryMaxChars).toBe('handoffSummaryRange')
   })
 
   it('matches Host definition size ceilings before Save', () => {
@@ -106,7 +110,16 @@ describe('client domain validation and view models', () => {
     expect(record).not.toHaveProperty('executionMode')
     expect(record).not.toHaveProperty('contextMode')
     expect(record).not.toHaveProperty('planningContext')
+    expect(record).not.toHaveProperty('handoffSummaryMaxChars')
     expect(EMPTY_SQUAD).toMatchObject({ executionMode: 'serial', contextMode: 'fork', planningContext: 'current' })
+  })
+
+  it('round-trips a configured squad handoff summary limit', () => {
+    const draft = squadDraftOf({
+      id: 'team', name: 'Long-form', members: ['a'], collabNote: '', handoffSummaryMaxChars: 24_000,
+    })
+    expect(draft.handoffSummaryMaxChars).toBe('24000')
+    expect(toSquadRecord(draft)).toMatchObject({ handoffSummaryMaxChars: 24_000 })
   })
 
   it('validates inherited context and execution against the Host defaults', () => {
@@ -165,9 +178,9 @@ describe('client domain validation and view models', () => {
     expect(isTeamSnapshot(VALID_SNAPSHOT)).toBe(true)
     expect(isTeamSnapshot({ ...VALID_SNAPSHOT, capabilities: undefined })).toBe(false)
     expect(isTeamSnapshot({ ...VALID_SNAPSHOT, defaults: { ...VALID_SNAPSHOT.defaults, plannerMaxTokens: 0 } })).toBe(false)
-    expect(isTeamSnapshot({ apiVersion: 3, agents: [{ id: 'a' }], squads: [], models: [], tools: [] })).toBe(false)
-    expect(isTeamSnapshot({ apiVersion: 3, agents: [], squads: [{ id: 't', name: 'T', collabNote: '', members: [42] }], models: [], tools: [] })).toBe(false)
-    const controller = new AgentTeamController(async <T,>() => ({ apiVersion: 3, agents: [{ id: 'a' }], squads: [], models: [], tools: [] }) as T)
+    expect(isTeamSnapshot({ apiVersion: 4, agents: [{ id: 'a' }], squads: [], models: [], tools: [] })).toBe(false)
+    expect(isTeamSnapshot({ apiVersion: 4, agents: [], squads: [{ id: 't', name: 'T', collabNote: '', members: [42] }], models: [], tools: [] })).toBe(false)
+    const controller = new AgentTeamController(async <T,>() => ({ apiVersion: 4, agents: [{ id: 'a' }], squads: [], models: [], tools: [] }) as T)
     await expect(controller.load()).rejects.toThrow('DeepSeek Harness')
     expect(controller.getSnapshot().status).toBe('error')
   })

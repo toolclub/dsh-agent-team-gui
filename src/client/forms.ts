@@ -1,5 +1,6 @@
 import type { AgentView, SquadView, TeamDefaults, TeamSnapshot } from './contracts.ts'
 import type { MessageKey } from './i18n.ts'
+import { MAX_HANDOFF_SUMMARY_MAX_CHARS, MIN_HANDOFF_SUMMARY_MAX_CHARS } from '../limits.ts'
 
 export interface AgentDraft {
   id: string
@@ -29,6 +30,7 @@ export interface SquadDraft {
   maxConcurrency: string
   memberTimeoutMs: string
   tokenBudget: string
+  handoffSummaryMaxChars: string
   activationMode: 'always' | 'smart' | 'manual'
   memberSelectionMode: 'all' | 'adaptive'
   responseMode: 'foreground' | 'background'
@@ -54,6 +56,7 @@ export const EMPTY_AGENT: AgentDraft = {
 export const EMPTY_SQUAD: SquadDraft = {
   id: '', name: '', collabNote: '', members: [], fixedOrder: false, executionOrder: [], executionMode: 'serial', contextMode: 'fork',
   leaderAgentId: '', triggerMode: 'guaranteed', failurePolicy: 'continue', maxConcurrency: '', memberTimeoutMs: '', tokenBudget: '',
+  handoffSummaryMaxChars: '',
   activationMode: 'always', memberSelectionMode: 'all', responseMode: 'foreground', planningContext: 'current', plannerMaxTokens: '2048',
   qualityEnabled: false, reviewerAgentId: '', repairAgentId: '', qualityMaxRounds: '1', qualityCriteria: '',
 }
@@ -99,6 +102,7 @@ export function squadDraftOf(squad: SquadView): SquadDraft {
     maxConcurrency: squad.maxConcurrency?.toString() ?? '',
     memberTimeoutMs: squad.memberTimeoutMs?.toString() ?? '',
     tokenBudget: squad.tokenBudget?.toString() ?? '',
+    handoffSummaryMaxChars: squad.handoffSummaryMaxChars?.toString() ?? '',
     activationMode: squad.activationMode ?? 'always',
     memberSelectionMode: squad.memberSelectionMode ?? 'all',
     responseMode: squad.responseMode ?? 'foreground',
@@ -153,6 +157,7 @@ export function validateSquad(draft: SquadDraft, agents: readonly AgentView[], d
   if (draft.maxConcurrency !== '' && (!isIntegerInRange(draft.maxConcurrency, 1, 32))) errors.maxConcurrency = 'concurrencyRange'
   if (draft.memberTimeoutMs !== '' && (!isIntegerInRange(draft.memberTimeoutMs, 1_000, 3_600_000))) errors.memberTimeoutMs = 'timeoutRange'
   if (draft.tokenBudget !== '' && !isIntegerInRange(draft.tokenBudget, 1, 100_000_000)) errors.tokenBudget = 'budgetRange'
+  if (draft.handoffSummaryMaxChars !== '' && !isIntegerInRange(draft.handoffSummaryMaxChars, MIN_HANDOFF_SUMMARY_MAX_CHARS, MAX_HANDOFF_SUMMARY_MAX_CHARS)) errors.handoffSummaryMaxChars = 'handoffSummaryRange'
   if (!isIntegerInRange(draft.plannerMaxTokens, 256, 8_192)) errors.plannerMaxTokens = 'plannerRange'
   const effectiveExecution = draft.fixedOrder ? 'serial' : draft.executionMode === 'inherit' ? defaults?.executionMode : draft.executionMode
   const effectiveContext = draft.contextMode === 'inherit' ? defaults?.contextMode : draft.contextMode
@@ -207,6 +212,7 @@ export function toSquadRecord(draft: SquadDraft): Omit<SquadView, 'id'> {
     ...(draft.maxConcurrency === '' ? {} : { maxConcurrency: Number(draft.maxConcurrency) }),
     ...(draft.memberTimeoutMs === '' ? {} : { memberTimeoutMs: Number(draft.memberTimeoutMs) }),
     ...(draft.tokenBudget === '' ? {} : { tokenBudget: Number(draft.tokenBudget) }),
+    ...(draft.handoffSummaryMaxChars === '' ? {} : { handoffSummaryMaxChars: Number(draft.handoffSummaryMaxChars) }),
     activationMode: draft.activationMode,
     memberSelectionMode: draft.memberSelectionMode,
     responseMode: draft.responseMode,

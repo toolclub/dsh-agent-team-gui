@@ -34,7 +34,7 @@
 DSH provider/model 路由。
 
 ```sh
-dsh plugin --profile web add -w github:toolclub/dsh-agent-team-gui#v1.0.0
+dsh plugin --profile web add -w github:toolclub/dsh-agent-team-gui#v1.0.1
 dsh --profile web
 ```
 
@@ -145,6 +145,14 @@ flowchart LR
 每次执行都会在规划前写入持久记录。运行中心展示前台/后台状态、实时阶段、耗时、child ID、
 完整输出、有界交接、停止、有链接的整次或单成员重试、导出、筛选以及受保留策略保护的清理。
 
+如果 DSH 子运行在交付非空纯文本后以 `stopReason: "error"` 结束，该成员会按**已完成**处理，
+不会把有效的长文本交付误判为失败。停止原因仍会持久化，运行中心会显示协议交付警告；空输出、
+Promise 拒绝、清理失败、超时以及 `max-tokens` 等其他非完成原因仍然算失败。
+
+每个成员的交接摘要默认最多保留 16,000 个字符。小队可通过 `handoffSummaryMaxChars` 配置
+1,000–32,000 个字符。完整原始输出仍持久保存在运行中心；依赖成员和主模型 Prompt 继续使用
+独立的聚合边界，避免单个长交付无限扩大模型上下文。
+
 插件复用 DSH 官方 `tokenUsage` projection，并保留四个桶：
 
 - 非缓存输入；
@@ -214,6 +222,7 @@ Harness provider 没有通过稳定价格契约发布价格时，插件不会猜
 | 规划器 | 当前/最近/完整上下文以及有界的规划 Token 上限 |
 | 恢复 | 继续、停止或一次重试；成员超时和备用路由 |
 | 限制 | 最大并发以及基于 provider 上报的软小队 Token 预算 |
+| 交接摘要 | 每名成员的摘要字符上限；留空使用 16,000，可配置 1,000–32,000 |
 | 质量 | 指定审核人、返工负责人、标准和最多两次返工 |
 
 ![窄屏下仍然能够完成主要操作](assets/v0.5-narrow.png)
@@ -280,7 +289,7 @@ dsh plugin --profile web add -w .
 ```sh
 mkdir -p dist
 pnpm pack --pack-destination dist
-dsh plugin --profile web add -w ./dist/dsh-agent-team-gui-0.5.0.tgz
+dsh plugin --profile web add -w ./dist/dsh-agent-team-gui-1.0.1.tgz
 ```
 
 包检查会验证运行时和声明闭包、示例、治理文件、截图、source map、外部依赖声明、绝对路径、
@@ -290,7 +299,7 @@ dsh plugin --profile web add -w ./dist/dsh-agent-team-gui-0.5.0.tgz
 
 可以在 DeepSeek Harness 中直接发送这一句话：
 
-> 按照 https://github.com/toolclub/dsh-agent-team-gui 的安装与安全说明，把已经审查的 v1.0.0
+> 按照 https://github.com/toolclub/dsh-agent-team-gui 的安装与安全说明，把已经审查的 v1.0.1
 > tag 安装到 Web profile；如果 pnpm 询问 `allowBuilds`，只授权 `dsh-agent-team-gui`；重启
 > Web，验证组合配置，并汇报实际安装的准确 revision。
 

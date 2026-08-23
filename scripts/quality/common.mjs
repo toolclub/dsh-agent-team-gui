@@ -5,7 +5,7 @@ import { basename, dirname, join, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 export const REPOSITORY_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
-export const DEFAULT_API_VERSION = 3
+export const DEFAULT_API_VERSION = 4
 
 export function invariant(condition, message) {
   if (!condition) throw new Error(message)

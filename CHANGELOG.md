@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.0.1 — 2026-08-23
+
+- Treat a DSH child that settles with `stopReason: "error"` but delivers non-empty plain text as a
+  completed member contribution. The original stop reason stays durable and Run Center shows a
+  protocol-delivery warning; rejected promises, cleanup failures, empty output, timeouts, and other
+  stop reasons such as `max-tokens` remain failures.
+- Raise the default per-member handoff summary ceiling from 4,000 to 16,000 characters so long-form
+  Markdown deliverables are not silently cut at the old boundary.
+- Add a durable, versioned, import/export-safe per-team `handoffSummaryMaxChars` setting with a
+  1,000–32,000 character range, Host/RPC/client validation, Settings UI, and bilingual guidance.
+  Complete raw output remains in Run Center, while dependency and lead prompts retain independent
+  aggregate bounds.
+- Move the mixed Host/client contract handshake to RPC v4 and align development plus CI smoke
+  coverage with DSH `0.1.1-rc.2`, the reporter's reproduced environment.
+
 ## 1.0.0 — 2026-08-19
 
 - **Structured retrospective synthesis**: the main Agent no longer produces a flat "synthesize

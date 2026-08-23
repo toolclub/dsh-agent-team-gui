@@ -1,6 +1,6 @@
 /** Browser-side mirror of the loopback RPC v3 contract. No credentials cross this boundary. */
 
-export const AGENT_TEAM_RPC_API_VERSION = 3
+export const AGENT_TEAM_RPC_API_VERSION = 4
 
 export type ActivationMode = 'always' | 'smart' | 'manual'
 export type MemberSelectionMode = 'all' | 'adaptive'
@@ -40,6 +40,7 @@ export interface SquadView {
   maxConcurrency?: number
   memberTimeoutMs?: number
   tokenBudget?: number
+  handoffSummaryMaxChars?: number
   activationMode?: ActivationMode
   memberSelectionMode?: MemberSelectionMode
   responseMode?: ResponseMode
@@ -133,6 +134,7 @@ export interface RunMemberView {
   endedAt?: number
   runId?: string
   childId?: string
+  stopReason?: string
   output: Array<{ type?: string; text?: string }>
   error?: string
   usage?: TokenUsageView

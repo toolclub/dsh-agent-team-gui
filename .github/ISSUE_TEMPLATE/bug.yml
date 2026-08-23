@@ -13,7 +13,7 @@ body:
     attributes:
       label: Plugin version or Git commit
       description: Use the installed tag or full commit SHA.
-      placeholder: v0.5.0 or 0123456789abcdef...
+      placeholder: v1.0.1 or 0123456789abcdef...
     validations:
       required: true
   - type: input

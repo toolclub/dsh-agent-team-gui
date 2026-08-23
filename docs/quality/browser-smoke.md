@@ -9,7 +9,7 @@ accepted by the smoke harness.
 The automated baseline is:
 
 ```sh
-API_VERSION=3 SMOKE_SCREENSHOT_DIR=.artifacts/browser-smoke pnpm run smoke:browser
+API_VERSION=4 SMOKE_SCREENSHOT_DIR=.artifacts/browser-smoke pnpm run smoke:browser
 ```
 
 It proves the production client bundle loads through DSH, the RPC handshake is v3, a seeded team

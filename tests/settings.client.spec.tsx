@@ -10,7 +10,7 @@ const DEFINITION_REVISION = 17
 
 function catalog(overrides: Partial<TeamSnapshot> = {}): TeamSnapshot {
   return {
-    apiVersion: 3,
+    apiVersion: 4,
     agents: [
       { id: 'agent-1', name: 'Builder', systemPrompt: 'Build', provider: 'p', model: 'm' },
       { id: 'agent-2', name: 'Reviewer', systemPrompt: 'Review', provider: 'p', model: 'm' },
@@ -65,6 +65,8 @@ describe('TeamSettingsPage', () => {
     }
 
     const team = assertLayout('小队编辑器')
+    expect(screen.getByLabelText('成员交接摘要上限（字符）')).toHaveValue('')
+    expect(screen.getByText(/留空使用默认 16,000/)).toBeInTheDocument()
     expect(within(team.actions).getByRole('button', { name: '保存' })).toBeDisabled()
     expect(within(team.actions).getByRole('button', { name: '放弃修改' })).toBeDisabled()
     fireEvent.change(screen.getByLabelText('小队名称'), { target: { value: 'Unsaved delivery' } })

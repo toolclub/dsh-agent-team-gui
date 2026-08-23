@@ -16,6 +16,7 @@ describe('AgentTeamService export/import', () => {
       members: [researcherId, writerId, reviewerId],
       executionOrder: [reviewerId, writerId, researcherId],
       contextMode: 'chain',
+      handoffSummaryMaxChars: 24_000,
     })
     const doc = await source.service.exportDefinitions()
 
@@ -23,6 +24,7 @@ describe('AgentTeamService export/import', () => {
     expect(doc.version).toBe(2)
     expect(doc.agents).toHaveLength(3)
     expect(doc.squads).toHaveLength(1)
+    expect(doc.squads[0]).toMatchObject({ handoffSummaryMaxChars: 24_000 })
 
     const target = createService()
     const result = await target.service.importDefinitions(doc)
@@ -30,6 +32,7 @@ describe('AgentTeamService export/import', () => {
     expect(target.service.listAgents()).toEqual(source.service.listAgents())
     expect(target.service.getAgent(researcherId)).toMatchObject({ fallbackModel: 'researcher-backup' })
     expect(target.service.listSquads()).toEqual(source.service.listSquads())
+    expect(target.service.getSquad(squadId)).toMatchObject({ handoffSummaryMaxChars: 24_000 })
   })
 
   it('merges by upserting document rows and keeping unrelated store rows', async () => {
