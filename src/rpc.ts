@@ -8,11 +8,12 @@ import { z, ZodError } from 'zod'
 import type { AgentTeamService } from './index.ts'
 import { AgentTeamError } from './tools/domain/host.ts'
 import { AgentId, DispatchId, SquadId, type AgentRouteRemap } from './types.ts'
+import { MAX_HANDOFF_SUMMARY_MAX_CHARS, MIN_HANDOFF_SUMMARY_MAX_CHARS } from './limits.ts'
 
 /** 与浏览器入口共享的 RPC channel。 */
 export const AGENT_TEAM_RPC_CHANNEL = '/agent-team-gui'
 /** Browser/host contract revision. A snapshot handshake prevents mixed-version UIs. */
-export const AGENT_TEAM_RPC_API_VERSION = 3
+export const AGENT_TEAM_RPC_API_VERSION = 4
 
 const emptySchema = z.object({}).strict()
 const idSchema = z.string().min(1)
@@ -43,6 +44,7 @@ const squadInputSchema = z.object({
   maxConcurrency: z.number().int().positive().max(32).optional(),
   memberTimeoutMs: z.number().int().min(1_000).max(3_600_000).optional(),
   tokenBudget: z.number().int().positive().max(100_000_000).optional(),
+  handoffSummaryMaxChars: z.number().int().min(MIN_HANDOFF_SUMMARY_MAX_CHARS).max(MAX_HANDOFF_SUMMARY_MAX_CHARS).optional(),
   activationMode: z.enum(['always', 'smart', 'manual']).optional(),
   memberSelectionMode: z.enum(['all', 'adaptive']).optional(),
   responseMode: z.enum(['foreground', 'background']).optional(),
@@ -102,6 +104,7 @@ function squadRecord(input: SquadInput) {
     ...(input.maxConcurrency === undefined ? {} : { maxConcurrency: input.maxConcurrency }),
     ...(input.memberTimeoutMs === undefined ? {} : { memberTimeoutMs: input.memberTimeoutMs }),
     ...(input.tokenBudget === undefined ? {} : { tokenBudget: input.tokenBudget }),
+    ...(input.handoffSummaryMaxChars === undefined ? {} : { handoffSummaryMaxChars: input.handoffSummaryMaxChars }),
     ...(input.activationMode === undefined ? {} : { activationMode: input.activationMode }),
     ...(input.memberSelectionMode === undefined ? {} : { memberSelectionMode: input.memberSelectionMode }),
     ...(input.responseMode === undefined ? {} : { responseMode: input.responseMode }),

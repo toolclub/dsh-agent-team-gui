@@ -446,6 +446,66 @@ describe('AgentTeamService dispatch', () => {
     ])
   })
 
+  it('accepts delivered plain text from a protocol-error stop while preserving the stop reason', async () => {
+    const chapter = `# Delivered chapter\n\n${'complete prose '.repeat(450)}`
+    const state = createService({
+      start: async () => ({
+        id: SessionId('plain-text-delivery'),
+        localAgent: undefined,
+        result: Promise.resolve({
+          output: [{ type: 'text' as const, text: chapter }],
+          stopReason: 'error' as const,
+        }),
+        async dispose() {},
+      }),
+    })
+    await state.agents.put(researcherId, agent('Writer'))
+    await state.squads.put(squadId, {
+      name: 'Long-form delivery',
+      members: [researcherId],
+      executionOrder: [researcherId],
+      handoffSummaryMaxChars: 8_000,
+    })
+
+    const result = await state.service.dispatch({ squadId, task: 'Write the chapter' }, state.parent, new AbortController().signal)
+
+    expect(result.status).toBe('completed')
+    expect(result.members[0]).toMatchObject({
+      status: 'completed',
+      stopReason: 'error',
+      output: [{ type: 'text', text: chapter }],
+      handoff: { summary: chapter.trim() },
+    })
+    expect(result.members[0]).not.toHaveProperty('error')
+    expect(state.service.getRun(result.dispatchId)?.members[0]).toMatchObject({
+      status: 'completed',
+      stopReason: 'error',
+      handoff: { summary: chapter.trim() },
+    })
+  })
+
+  it('keeps an error stop without delivered text failed', async () => {
+    const state = createService({
+      start: async () => ({
+        id: SessionId('empty-error'),
+        localAgent: undefined,
+        result: Promise.resolve({ output: [{ type: 'text' as const, text: '  \n' }], stopReason: 'error' as const }),
+        async dispose() {},
+      }),
+    })
+    await state.agents.put(researcherId, agent('Writer'))
+    await state.squads.put(squadId, { name: 'Empty delivery', members: [researcherId], executionOrder: [researcherId] })
+
+    const result = await state.service.dispatch({ squadId, task: 'Write the chapter' }, state.parent, new AbortController().signal)
+
+    expect(result.status).toBe('failed')
+    expect(result.members[0]).toMatchObject({
+      status: 'failed',
+      stopReason: 'error',
+      error: 'run ended with stop reason error',
+    })
+  })
+
   it('rejects ambiguous dispatch inputs before starting children', async () => {
     const { service, starts, parent, squads } = await populate()
     const signal = new AbortController().signal

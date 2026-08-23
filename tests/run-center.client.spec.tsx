@@ -79,6 +79,30 @@ describe('Team Run Center', () => {
     expect(screen.getByText('依赖阶段')).toBeInTheDocument()
   })
 
+  it('surfaces a completed plain-text delivery whose child retained an error stop reason', async () => {
+    const base = run('completed')
+    const { quality: _quality, ...withoutQuality } = base
+    const detail: RunView = {
+      ...withoutQuality,
+      members: base.members.map(member => ({
+        ...member,
+        status: 'completed' as const,
+        stopReason: 'error',
+        output: [{ type: 'text', text: 'Complete long-form delivery' }],
+      })),
+    }
+    const controller = new AgentTeamController(async <T,>(endpoint: string) => {
+      if (endpoint === 'run/list') return { runs: [detail] } as T
+      if (endpoint === 'run/get') return { run: detail } as T
+      throw new Error(`unexpected ${endpoint}`)
+    })
+    render(<TeamRunCenter {...centerProps(controller)} />)
+    await screen.findByText('Build the release')
+    fireEvent.click(document.querySelector<HTMLButtonElement>('.atg-run-summary')!)
+    expect(await screen.findByRole('status')).toHaveTextContent('本次按完成处理')
+    expect(screen.getByText('Complete long-form delivery')).toBeInTheDocument()
+  })
+
   it('keeps an expanded live detail fresh across summary polling', async () => {
     const full = run('running')
     const summary = { ...full, plan: undefined, quality: undefined, members: full.members.map(member => ({ ...member, output: [] })) }
@@ -371,7 +395,7 @@ describe('Team Run Center', () => {
         return (lists === 1 ? { runs: [{ id: 'broken' }] } : { runs: [] }) as T
       }
       if (endpoint === 'snapshot') return {
-        apiVersion: 3, agents: [], squads: [], models: [], tools: [],
+        apiVersion: 4, agents: [], squads: [], models: [], tools: [],
         capabilities: { smartActivation: true, dags: true, qualityGate: true, backgroundRuns: true, recipes: true, remoteRecipeFetch: false, insights: true, reproducibleVersions: true },
         defaults: { executionMode: 'serial', fixedOrderExecutionMode: 'serial', contextMode: 'fork', planningContext: 'full', plannerMaxTokens: 2_048 },
       } as T

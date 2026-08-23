@@ -9,7 +9,7 @@ import type { LocaleService } from '../src/client/i18n.ts'
 const snapshot = (squads: TeamSnapshot['squads'] = [{
   id: 'team-1', name: 'Delivery', members: ['agent-1'], collabNote: '',
 }]): TeamSnapshot => ({
-  apiVersion: 3,
+  apiVersion: 4,
   agents: [{ id: 'agent-1', name: 'Builder', systemPrompt: 'Build', provider: 'p', model: 'm' }],
   squads,
   models: [{ provider: 'p', name: 'Provider', models: [{ id: 'm', name: 'Model' }] }],

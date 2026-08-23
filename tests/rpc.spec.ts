@@ -42,7 +42,7 @@ describe('agent team RPC handler', () => {
     const result = await call<SnapshotValue>(handler, 'snapshot', {}, signal())
     expect(result.ok).toBe(true)
     if (!result.ok) return
-    expect(result.value.apiVersion).toBe(3)
+    expect(result.value.apiVersion).toBe(4)
     expect(result.value.capabilities).toMatchObject({ dags: true, recipes: true, remoteRecipeFetch: false })
     expect(result.value.agents).toHaveLength(3)
     expect(result.value.squads).toHaveLength(1)
@@ -108,6 +108,7 @@ describe('agent team RPC handler', () => {
         executionOrder: ['reviewer', writerId, researcherId],
         executionMode: 'serial',
         contextMode: 'chain',
+        handoffSummaryMaxChars: 24_000,
       },
     }, signal())
 
@@ -116,6 +117,7 @@ describe('agent team RPC handler', () => {
       executionOrder: ['reviewer', writerId, researcherId],
       executionMode: 'serial',
       contextMode: 'chain',
+      handoffSummaryMaxChars: 24_000,
     })
     const snapshot = await call<SnapshotValue & { squads: Array<Record<string, unknown>> }>(
       handler, 'snapshot', {}, signal(),
@@ -124,6 +126,7 @@ describe('agent team RPC handler', () => {
       executionOrder: ['reviewer', writerId, researcherId],
       executionMode: 'serial',
       contextMode: 'chain',
+      handoffSummaryMaxChars: 24_000,
     })
   })
 

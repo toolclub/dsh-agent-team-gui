@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { defineDomain, domainTable } from '@deepseek-ai/dsh-storage-domain'
 import type { SessionId } from '@deepseek-ai/dsh-session'
 import type { AgentExportItem, AgentId, AgentRecord, AgentTeamExportDocument, AgentTeamRecipeDocument, DispatchId, ProjectSquadDefaultRecord, SessionNextSquadModeRecord, SessionSquadModeRecord, SquadExportItem, SquadId, SquadMessageClaimRecord, SquadRecord, SquadRunRecord, SquadVersionRecord } from './types.ts'
+import { MAX_HANDOFF_SUMMARY_MAX_CHARS, MIN_HANDOFF_SUMMARY_MAX_CHARS } from './limits.ts'
 
 /**
  * v0 used an intentionally small schema with no resource ceilings. Durable
@@ -62,6 +63,7 @@ const squadReadFields = z.object({
   maxConcurrency: z.number().int().positive().max(32).optional(),
   memberTimeoutMs: z.number().int().min(1_000).max(3_600_000).optional(),
   tokenBudget: z.number().int().positive().optional(),
+  handoffSummaryMaxChars: z.number().int().min(MIN_HANDOFF_SUMMARY_MAX_CHARS).max(MAX_HANDOFF_SUMMARY_MAX_CHARS).optional(),
   activationMode: z.enum(['always', 'smart', 'manual']).optional(),
   memberSelectionMode: z.enum(['all', 'adaptive']).optional(),
   responseMode: z.enum(['foreground', 'background']).optional(),
@@ -89,6 +91,7 @@ const squadWriteFields = z.object({
   maxConcurrency: z.number().int().positive().max(32).optional(),
   memberTimeoutMs: z.number().int().min(1_000).max(3_600_000).optional(),
   tokenBudget: z.number().int().positive().max(100_000_000).optional(),
+  handoffSummaryMaxChars: z.number().int().min(MIN_HANDOFF_SUMMARY_MAX_CHARS).max(MAX_HANDOFF_SUMMARY_MAX_CHARS).optional(),
   activationMode: z.enum(['always', 'smart', 'manual']).optional(),
   memberSelectionMode: z.enum(['all', 'adaptive']).optional(),
   responseMode: z.enum(['foreground', 'background']).optional(),

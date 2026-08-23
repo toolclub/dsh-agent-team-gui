@@ -4,6 +4,7 @@ import type { ContentBlock, UserMessage } from '@deepseek-ai/dsh-llm'
 import type { SessionId } from '@deepseek-ai/dsh-session'
 import type { SubagentResult, SubagentRun } from '@deepseek-ai/dsh-subagent'
 import { deterministicExecutionPlan, executionWaves, normalizeHandoff, validateExecutionPlan } from '../orchestration.ts'
+import { DEFAULT_HANDOFF_SUMMARY_MAX_CHARS } from '../../limits.ts'
 import { runMeteringCoverage, RunHistoryStore } from '../run-history.ts'
 import { AgentTeamError } from '../domain/host.ts'
 import { DefinitionApplicationService } from './definition-service.ts'
@@ -376,6 +377,7 @@ export class ExecutionApplicationService extends DefinitionApplicationService {
     run: SubagentRun,
     attempts: number,
     startedAt: number,
+    handoffSummaryMaxChars: number,
     baseline?: TokenUsageProjection,
   ): Promise<SquadMemberResult> {
     let result: SubagentResult | undefined
@@ -397,7 +399,9 @@ export class ExecutionApplicationService extends DefinitionApplicationService {
     const usage = this.usageFor(run, baseline)
     const errors: string[] = []
     if (executionError !== undefined) errors.push(`run failed: ${this.errorText(executionError)}`)
-    if (result !== undefined && result.stopReason !== 'completed') {
+    const deliveredText = result === undefined ? '' : this.resultText(result.output).trim()
+    const deliveredDespiteProtocolError = result?.stopReason === 'error' && deliveredText !== ''
+    if (result !== undefined && result.stopReason !== 'completed' && !deliveredDespiteProtocolError) {
       errors.push(`run ended with stop reason ${result.stopReason}`)
     }
     if (disposalError !== undefined) errors.push(`run cleanup failed: ${this.errorText(disposalError)}`)
@@ -414,7 +418,7 @@ export class ExecutionApplicationService extends DefinitionApplicationService {
       endedAt: Date.now(),
       ...usage === undefined ? {} : { usage },
       ...errors.length === 0 ? {} : { error: errors.join('; ') },
-      ...result === undefined ? {} : { handoff: normalizeHandoff(result.structured, this.resultText(result.output)) },
+      ...result === undefined ? {} : { handoff: normalizeHandoff(result.structured, deliveredText, handoffSummaryMaxChars) },
     }
   }
 
@@ -490,7 +494,14 @@ export class ExecutionApplicationService extends DefinitionApplicationService {
       let settled: SquadMemberResult
       let finalAttemptUsage: AgentTokenUsage | undefined
       try {
-        settled = await this.settleRun(member, run, attempt, startedAt, baseline)
+        settled = await this.settleRun(
+          member,
+          run,
+          attempt,
+          startedAt,
+          squad.handoffSummaryMaxChars ?? DEFAULT_HANDOFF_SUMMARY_MAX_CHARS,
+          baseline,
+        )
       } finally {
         finalAttemptUsage = await stopUsageTracking()
       }

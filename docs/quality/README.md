@@ -24,16 +24,16 @@ Install an official DSH CLI first, or point `DSH_BIN` at a built official checko
 
 ```sh
 npm install --global @deepseek-ai/dsh@0.1.0-rc.6
-API_VERSION=3 pnpm run smoke:install
+API_VERSION=4 pnpm run smoke:install
 pnpm exec playwright install chromium
-API_VERSION=3 pnpm run smoke:browser
+API_VERSION=4 pnpm run smoke:browser
 ```
 
 Generate the six README captures from the same isolated production UI (never from static HTML or
 an image generator) with:
 
 ```sh
-API_VERSION=3 pnpm run capture:readme
+API_VERSION=4 pnpm run capture:readme
 ```
 
 The capture fixture creates three valid reusable members through RPC, saves an advanced team,
@@ -59,7 +59,7 @@ variables are not forwarded. The install smoke performs:
 2. installation into a brand-new Web profile;
 3. composed-config verification;
 4. Web boot on an operating-system-selected port;
-5. HTML and RPC v3 checks;
+5. HTML and RPC v4 checks;
 6. persistent member/team creation;
 7. immutable member-backed versions plus recipe export/preview;
 8. graceful shutdown and restart;
@@ -87,7 +87,7 @@ To verify the exact public revision instead of a local tarball:
 
 ```sh
 PLUGIN_SPEC='github:toolclub/dsh-agent-team-gui#<full-40-character-commit>' \
-  API_VERSION=3 pnpm run smoke:install
+  API_VERSION=4 pnpm run smoke:install
 ```
 
 Tags and abbreviated SHAs are rejected because they are mutable or ambiguous at lifecycle-execution
@@ -100,7 +100,7 @@ profile's `allowBuilds`; it never weakens a user's profile and rejects any other
 ## Complete preflight
 
 ```sh
-EXPECTED_VERSION=0.5.0 API_VERSION=3 pnpm run preflight
+EXPECTED_VERSION=1.0.1 API_VERSION=4 pnpm run preflight
 ```
 
 The preflight runs frozen installation, commit-range plus staged/unstaged whitespace validation,

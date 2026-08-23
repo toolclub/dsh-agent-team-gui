@@ -101,16 +101,19 @@ describe('v0.5 planner and DAG policy (R4-R5, D2)', () => {
 
   it('bounds every structured handoff while leaving raw output persistence independent', () => {
     const handoff = normalizeHandoff({
-      summary: 's'.repeat(10_000),
+      summary: 's'.repeat(40_000),
       deliverables: Array.from({ length: 30 }, (_, index) => `${index}:${'d'.repeat(2_000)}`),
       risks: Array.from({ length: 30 }, () => 'r'.repeat(2_000)),
       changedFiles: Array.from({ length: 80 }, () => 'f'.repeat(2_000)),
     }, 'fallback')
-    expect(handoff.summary).toHaveLength(4_000)
+    expect(handoff.summary).toHaveLength(16_000)
     expect(handoff.deliverables).toHaveLength(12)
     expect(handoff.risks).toHaveLength(12)
     expect(handoff.changedFiles).toHaveLength(50)
     expect(Math.max(...handoff.deliverables.map(item => item.length))).toBe(1_000)
+    expect(normalizeHandoff(undefined, 'f'.repeat(20_000), 6_000).summary).toHaveLength(6_000)
+    expect(() => normalizeHandoff(undefined, 'fallback', 999)).toThrow(/1000-32000/)
+    expect(() => normalizeHandoff(undefined, 'fallback', 32_001)).toThrow(/1000-32000/)
   })
 
   it('smart planning may skip and adaptive planning may select a proper subset', async () => {
@@ -785,6 +788,9 @@ describe('v0.5 release-hardening regressions', () => {
     await expect(state.service.createAgent({ ...agent('Huge'), maxTokens: 1_000_001 }, AgentId('huge'))).rejects.toThrow()
     await state.agents.put(researcherId, agent('Researcher'))
     await expect(state.service.createSquad({ name: 'Huge', members: [researcherId], tokenBudget: 100_000_001 }, SquadId('huge'))).rejects.toThrow()
+    await expect(state.service.createSquad({ name: 'Tiny handoff', members: [researcherId], handoffSummaryMaxChars: 999 }, SquadId('tiny-handoff'))).rejects.toThrow()
+    await expect(state.service.createSquad({ name: 'Huge handoff', members: [researcherId], handoffSummaryMaxChars: 32_001 }, SquadId('huge-handoff'))).rejects.toThrow()
+    await expect(state.service.createSquad({ name: 'Bounded handoff', members: [researcherId], handoffSummaryMaxChars: 32_000 }, SquadId('bounded-handoff'))).resolves.toBeDefined()
     await state.squads.put(squadId, { name: 'Delivery', members: [researcherId] })
     await state.service.setNextSessionSquadMode(state.parent.id, 'team', squadId)
     await (state.service as unknown as { claimNextSessionSquadMode(id: SessionId, message: string): Promise<unknown> })
