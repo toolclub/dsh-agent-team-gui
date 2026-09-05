@@ -7,11 +7,21 @@
 [![GitHub stars](https://img.shields.io/github/stars/toolclub/dsh-agent-team-gui?style=flat-square)](https://github.com/toolclub/dsh-agent-team-gui/stargazers)
 [![MIT license](https://img.shields.io/github/license/toolclub/dsh-agent-team-gui?style=flat-square)](LICENSE)
 
-**为 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 提供持久、可复用的多模型 Agent 小队。**
-每个成员都能独立配置模型、角色、备用路由、Token 上限和工具策略。在普通对话输入框旁选择
-已保存的小队；主模型会拆分工作、执行有界依赖图，最后综合结果。
+**把规划、实现和审核保存为一支小队，在 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的普通对话中反复使用。**
+每个成员可选自己的模型与工具权限。发送一个任务后，查看分工、依赖、成员输出、审核结果和
+Provider 上报的 Token 用量；下一次继续使用同一套小队配置。
 
-![在 DeepSeek Harness Settings 中管理持久化多模型小队](assets/v0.5-teams-settings.png)
+[80 秒界面导览](https://github.com/toolclub/dsh-agent-team-gui/blob/main/assets/promotion-walkthrough-zh.mp4) · [安装](#安装) · [跑通第一个任务](docs/first-team.zh-CN.md) ·
+[示例配方](examples/full-stack-delivery.recipe.json) ·
+[发布版本](https://github.com/toolclub/dsh-agent-team-gui/releases) ·
+[反馈问题](https://github.com/toolclub/dsh-agent-team-gui/issues/new/choose)
+
+如果你也想复用自己的多模型工作流，欢迎点一个
+[Star](https://github.com/toolclub/dsh-agent-team-gui)，方便回来继续试用。
+
+[![多模型小队配置、运行中心与配方复用的界面导览](https://raw.githubusercontent.com/toolclub/dsh-agent-team-gui/main/assets/promotion-walkthrough-preview.gif)](https://github.com/toolclub/dsh-agent-team-gui/blob/main/assets/promotion-walkthrough-zh.mp4)
+
+*导览基于实际产品截图与预置示例数据制作，配中文合成旁白；状态、耗时和用量不是实际任务测试或性能基准。[素材来源与字幕](docs/promotion/demo-guide.md)。*
 
 ## 为什么需要这个插件
 
@@ -29,58 +39,64 @@
 
 ## 安装
 
-前置条件：DeepSeek Harness `>=0.1.0-rc.5 <0.2.0`、**Web** profile、Node.js
+需要已安装的 DeepSeek Harness `>=0.1.0-rc.5 <0.2.0`、**Web** profile、Node.js
 `>=22.19.0 <23` 或 `>=24.0.0`（不支持 Node.js 23）、pnpm，以及至少一条已经配置好的
-DSH provider/model 路由。
+DSH provider/model 路由。仓库 CI 当前使用 DSH `0.1.1-rc.2`。
+
+直接安装 **v1.0.1 预编译发布包**：
 
 ```sh
-dsh plugin --profile web add -w github:toolclub/dsh-agent-team-gui#v1.0.1
+dsh plugin --profile web add -w https://github.com/toolclub/dsh-agent-team-gui/releases/download/v1.0.1/dsh-agent-team-gui-1.0.1.tgz
 dsh --profile web
 ```
 
-Git 依赖会执行仓库自带的 `prepare` 构建。pnpm 10 或更高版本第一次可能要求授权构建。
-只把这个已经审查过的包加入 pnpm 提示的 Web profile 文件（通常是
-`~/.dsh/profiles/web/pnpm-workspace.yaml`），然后重复同一条固定版本命令：
-
-```yaml
-allowBuilds:
-  dsh-agent-team-gui: true
-```
-
-如果 DSH Web 已经运行，安装或更新后必须重启进程。打开 **Settings → 小队**，创建或导入
-成员和小队，然后打开对话输入框旁边的小队控件。
+这个发布包已包含 Host 和浏览器代码，不需要为插件授权 Git `prepare` 构建。
+如果 DSH Web 已经运行，安装或更新后重启该进程，再刷新页面。打开 **Settings → 小队**
+即可看到**小队 / 成员库 / 配方与数据**三个页签。
 
 > [!TIP]
-> 如果终端找不到 `dsh`，说明克隆 Harness 源码并不会自动安装全局命令。在 Harness 仓库中
+> 如果终端找不到 `dsh`，克隆 Harness 源码不会自动安装全局命令。在 Harness 仓库中
 > 使用 `pnpm dsh --version`，并把本文的 `dsh ...` 替换为
 > `pnpm --dir /absolute/path/to/deepseek-harness dsh ...`。
 
-不安装 `rg` 也能检查组合后的 bundle：
+安装排错见[首次体验指南](docs/first-team.zh-CN.md#安装或首跑遇到问题)；需要从源码安装时，
+使用下方[固定 Git tag](#固定-git-tag)方式。
 
-```sh
-dsh --profile web --dump-config | grep -E "agent-team-gui|dsh-agent-team-gui"
+## 跑通第一个任务
+
+从仓库自带的 [Full-stack delivery 配方](examples/full-stack-delivery.recipe.json)开始，
+它包含 **Product planner → Implementation engineer → Quality reviewer** 三种角色；
+实际分工和依赖由当前对话模型规划。
+
+1. 保存配方 JSON 到本地。在 **Settings → 小队 → 配方与数据** 点击**选择配方文件**，
+   文件读取后会自动预览；也可以粘贴到**配方 JSON**，再点击**预览**。
+2. 为三名成员把 `your-provider / your-model` 映射为已配置的路由。保持**导入策略 →
+   创建副本**，等到**配方校验通过**后，点击**确认导入配方**。到**成员库**核对各自模型，
+   可以使用不同模型，也可以先全部使用同一个可用模型。
+3. 在**小队**页选中导入的小队，将**触发策略**设为**每次都运行**、**成员选择**设为
+   **全部成员**并保存。示例原本使用智能选择，这样调整便于观察完整的首次协作。
+4. 在空临时项目中新建对话，打开输入框旁的小队控件，选择导入的小队，并选中
+   **始终使用小队**。发送下面的任务。
+5. 打开对话的**小队运行**，展开记录查看计划、成员交付和审核；在**洞察**中查看本次
+   使用的模型与 Token 计量情况。
+
+```text
+请在当前空临时项目中实现一个无外部依赖的待办清单。
+交付 index.html、app.mjs、app.test.mjs、README.md。
+支持新增非空任务、完成/取消完成、删除、剩余计数，提供空列表提示和键盘可用的操作。
+规划成员先写验收标准；实现成员只改当前项目；审核成员核对代码和实际测试输出。
+用 node --test 验证新增、拒绝空白、切换完成、删除及计数，给出浏览器人工检查步骤。
+不需要持久化、登录或后端；不要安装依赖、访问外部服务、提交 Git 或发布。
+最终报告交付文件、实际执行的检查、未验证项和剩余问题，不要把未执行的测试写成通过。
 ```
 
-预期输出同时包含 `dsh-agent-team-gui` bundle 层和 `agent-team-gui` 行。
-
-> [!CAUTION]
-> `allowBuilds` 允许选中的 Git 依赖在你的机器上执行构建。请先审查源码，并固定 tag 或完整
-> commit SHA。已经编译好的 release tarball 不需要 Git `prepare` 权限。
-
-## 五步创建第一个小队
-
-1. 在 **Settings → 成员库** 创建可复用成员。选择已经配置的 provider/model，写清楚单一
-   角色提示词，可选备用路由，并且只授权这个角色需要的工具。
-2. 在 **Settings → 小队** 创建小队并选择成员。不启用**固定顺序**时默认动态编排；启用后
-   得到可重复的串行流水线。
-3. 选择**始终 / 智能 / 手动**触发、全部成员或自适应子集、前台或后台，并按需配置恢复、
-   预算和审核策略。
-4. 在普通输入框旁选择**小队 / 单人 / 继承**。还可以只给下一条有效消息排队另一个小队或
-   单人模式，或者设置项目默认小队。
-5. 像平时一样发送消息。打开**小队运行**即可查看计划、阶段、成员、审核/返工轮次、输出、
-   错误、耗时、重试和官方 Token 计量覆盖。
+临时目录创建方式、工具权限、首次模型配置、验收清单和排错步骤都在
+[完整首次体验指南](docs/first-team.zh-CN.md)。这是供你复现的任务说明，目前未附真实模型
+完成此任务的实测结果，也不承诺固定耗时或节省比例。
 
 ![在普通输入框旁选择小队、单人或继承](assets/v0.5-composer-mode.png)
+
+*输入框控件演示，使用预置示例数据。*
 
 ## 编排是怎样工作的
 
@@ -142,6 +158,8 @@ flowchart LR
 
 ![查看 DAG、成员状态、审核轮次和 Token 桶](assets/v0.5-run-center.png)
 
+*运行中心演示，状态与 Token 来自预置示例数据，不代表实际任务表现。*
+
 每次执行都会在规划前写入持久记录。运行中心展示前台/后台状态、实时阶段、耗时、child ID、
 完整输出、有界交接、停止、有链接的整次或单成员重试、导出、筛选以及受保留策略保护的清理。
 
@@ -166,6 +184,8 @@ Harness provider 没有通过稳定价格契约发布价格时，插件不会猜
 
 ![查看持久用量与完成洞察，不伪造价格](assets/v0.5-insights.png)
 
+*洞察界面演示，图中用量和完成率来自预置示例数据。*
+
 ## 质量门禁和后台运行
 
 可选质量门禁需要明确指定审核人、返工负责人、审核标准和 `0..2` 次返工。未通过时只能重跑
@@ -179,6 +199,8 @@ Harness provider 没有通过稳定价格契约发布价格时，插件不会猜
 ## 版本、配方和定义备份
 
 ![预览配方、冲突、受影响小队以及主/备用路由重映射](assets/v0.5-recipes.png)
+
+*配方导入演示，使用预置示例数据。*
 
 - 每个小队版本都包含所有引用成员的不可变快照。
 - 恢复前必须预览；共享成员会影响其他小队时会明确警告。
@@ -227,6 +249,8 @@ Harness provider 没有通过稳定价格契约发布价格时，插件不会猜
 
 ![窄屏下仍然能够完成主要操作](assets/v0.5-narrow.png)
 
+*窄屏界面演示，使用预置示例数据。*
+
 ## Host 配置
 
 Web bundle 只插入一条唯一 Host row；它复用 Web profile 已有的 storage、Connection RPC、
@@ -260,6 +284,25 @@ Web bundle 只插入一条唯一 Host row；它复用 Web profile 已有的 stor
 
 ## 其他安装方式
 
+### 固定 Git tag
+
+如果希望从已审查的源码构建，可以安装固定 tag：
+
+```sh
+dsh plugin --profile web add -w github:toolclub/dsh-agent-team-gui#v1.0.1
+dsh --profile web
+```
+
+Git 依赖会执行仓库自带的 `prepare` 构建。pnpm 10 或更高版本第一次可能要求授权构建。
+只把这个包加入 pnpm 提示的 Web profile 文件（通常是
+`~/.dsh/profiles/web/pnpm-workspace.yaml`），保留文件中的其他配置，然后重复安装命令：
+
+复制 pnpm 错误中打印的**准确包键**到 `allowBuilds`；该键可能包含解析后的完整 revision。
+只授权这一条，并保留文件中已有配置。
+
+`allowBuilds` 允许选中的 Git 依赖在本机执行构建。请先审查源码，并固定 tag 或完整 commit
+SHA；不需要源码构建时，使用上方的预编译发布包即可。
+
 ### 固定 commit
 
 解析并审查完整 commit SHA，然后使用和 tag 安装相同的 `allowBuilds` 规则：
@@ -284,7 +327,7 @@ dsh plugin --profile web add -w .
 `preflight` 会检查 Host、Client 和测试类型；运行 Host/渲染 Client 测试；从空输出目录构建；
 检查 tarball 与敏感信息；并启动隔离的临时 DSH Web profile。
 
-### 已编译 tarball
+### 在本地打包 tarball
 
 ```sh
 mkdir -p dist
@@ -299,9 +342,8 @@ dsh plugin --profile web add -w ./dist/dsh-agent-team-gui-1.0.1.tgz
 
 可以在 DeepSeek Harness 中直接发送这一句话：
 
-> 按照 https://github.com/toolclub/dsh-agent-team-gui 的安装与安全说明，把已经审查的 v1.0.1
-> tag 安装到 Web profile；如果 pnpm 询问 `allowBuilds`，只授权 `dsh-agent-team-gui`；重启
-> Web，验证组合配置，并汇报实际安装的准确 revision。
+> 按照 https://github.com/toolclub/dsh-agent-team-gui 的安装说明，把 v1.0.1 预编译发布包
+> 安装到 Web profile；重启 Web，验证组合配置，并汇报实际安装的插件和 DSH 版本。
 
 ## 模型工具和公开 Service
 
@@ -329,7 +371,7 @@ dsh plugin --profile web add -w ./dist/dsh-agent-team-gui-1.0.1.tgz
 
 - 只提供 Web profile UI；没有 headless Settings。其他进程内插件仍可在提供必要 service 后使用
   导出的 Host service。
-- 声明兼容范围为 DSH `>=0.1.0-rc.5 <0.2.0`，当前 CI 实际验证 rc.6。DSH 和本插件都未
+- 声明兼容范围为 DSH `>=0.1.0-rc.5 <0.2.0`，当前 CI 使用 `0.1.1-rc.2`。DSH 和本插件都未
   稳定，请固定版本。
 - 旧 v0.4 持久定义和 v1 导出仍可读取/导入；编辑旧记录时必须满足 v0.5 更安全的新写入上限。
   没有保存原计划的旧运行无法忠实重试，会得到明确拒绝原因。
@@ -352,7 +394,7 @@ pnpm run smoke:install
 pnpm run smoke:browser
 ```
 
-CI 覆盖 Node 22.19 和 Node 24、全新 DSH rc.6 Web profile、浏览器键盘/无障碍/重连路径、
+CI 覆盖 Node 22.19 和 Node 24、全新 DSH `0.1.1-rc.2` Web profile、浏览器键盘/无障碍/重连路径、
 准确 Git revision 安装以及社区插件 doctor。详细产品契约和证据矩阵见
 [docs/v0.5-product-spec.md](docs/v0.5-product-spec.md) 与
 [docs/v0.5-acceptance.md](docs/v0.5-acceptance.md)。
