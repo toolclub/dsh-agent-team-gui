@@ -7,12 +7,22 @@
 [![GitHub stars](https://img.shields.io/github/stars/toolclub/dsh-agent-team-gui?style=flat-square)](https://github.com/toolclub/dsh-agent-team-gui/stargazers)
 [![MIT license](https://img.shields.io/github/license/toolclub/dsh-agent-team-gui?style=flat-square)](LICENSE)
 
-**Persistent, reusable multi-model Agent teams for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness).**
-Give each member its own model, role, fallback route, token limit, and tool policy. Select a saved
-team beside the normal composer; the lead model plans the work, runs a bounded dependency graph,
-and synthesizes the result.
+**Give DeepSeek Harness a reusable team: one Agent plans, another implements, and a third reviews.**
 
-![Manage a persistent multi-model team in DeepSeek Harness Settings](assets/v0.5-teams-settings.png)
+Save the team once, choose a model for each member, and reuse it across projects and conversations.
+Follow the plan, member outputs, retries, and provider-reported Token usage in one Run Center.
+This is an unofficial community plugin for the **DeepSeek Harness Web profile**.
+
+[Watch the 80-second UI guide](https://github.com/toolclub/dsh-agent-team-gui/blob/main/assets/promotion-walkthrough-zh.mp4) · [Install v1.0.1](#install) · [Run your first team](docs/first-team.md) ·
+[Example recipe](examples/full-stack-delivery.recipe.json) ·
+[Share a workflow](https://github.com/toolclub/dsh-agent-team-gui/discussions/1)
+
+[![UI walkthrough: reusable team setup, run inspection, and recipes](https://raw.githubusercontent.com/toolclub/dsh-agent-team-gui/main/assets/promotion-walkthrough-preview.gif)](https://github.com/toolclub/dsh-agent-team-gui/blob/main/assets/promotion-walkthrough-zh.mp4)
+
+*Screenshot-based UI guide with example data and Chinese synthetic narration. Displayed task results, timings, and Tokens are not a live-run benchmark. [Sources and captions](docs/promotion/demo-guide.md).*
+
+If this is useful for your DSH workflow, [give the project a Star](https://github.com/toolclub/dsh-agent-team-gui)
+and help another developer discover it.
 
 ## Why this plugin
 
@@ -30,58 +40,65 @@ Teams**, then use it across projects and conversations.
 
 ## Install
 
-Requirements: DeepSeek Harness `>=0.1.0-rc.5 <0.2.0`, the **Web** profile, Node.js
-`>=22.19.0 <23` or `>=24.0.0` (Node.js 23 is not supported), pnpm, and at least one configured DSH
-provider/model route.
+Requirements: a working DeepSeek Harness **Web** profile, at least one configured provider/model,
+Node.js `>=22.19.0 <23` or `>=24.0.0`, and pnpm. Declared DSH compatibility is
+`>=0.1.0-rc.5 <0.2.0`; the v1.0.1 release was verified against DSH `0.1.1-rc.2`.
+
+**Recommended: install the compiled release package.** It includes the built Host and client files,
+so installation does not run this plugin's Git `prepare` build or require its `allowBuilds` entry.
 
 ```sh
-dsh plugin --profile web add -w github:toolclub/dsh-agent-team-gui#v1.0.1
+dsh plugin --profile web add -w https://github.com/toolclub/dsh-agent-team-gui/releases/download/v1.0.1/dsh-agent-team-gui-1.0.1.tgz
 dsh --profile web
 ```
 
-Git dependencies run this repository's `prepare` build. On pnpm 10 or later, the first command may
-ask you to authorize that build. Add only this reviewed package to the Web profile file shown by
-pnpm (normally `~/.dsh/profiles/web/pnpm-workspace.yaml`), then repeat the same pinned command:
+Stop and restart an already-running DSH Web process after installing or upgrading. Then open
+**Settings → Teams**. If a plugin marketplace chooses Git installation and fails, use the direct
+release command above; see [installation troubleshooting](docs/first-team.md#installation-troubleshooting).
 
-```yaml
-allowBuilds:
-  dsh-agent-team-gui: true
-```
-
-Restart an already-running DSH Web process after installing or updating. Open **Settings → Teams**,
-create or import members and a team, then open the control beside the conversation composer.
+[Release notes and checksum](https://github.com/toolclub/dsh-agent-team-gui/releases/tag/v1.0.1) ·
+[Git/source installation](#git-source-installation)
 
 > [!TIP]
-> If `dsh` is not on `PATH`, cloning Harness alone did not install a global command. From the
-> Harness checkout use `pnpm dsh --version`, and replace `dsh ...` in this README with
-> `pnpm --dir /absolute/path/to/deepseek-harness dsh ...`.
+> If `dsh` is not on `PATH`, use the launcher that starts your working Harness installation.
+> With npm, replace `dsh` with `npx @deepseek-ai/dsh@0.1.1-rc.2`; from a source checkout, replace
+> it with `pnpm --dir /absolute/path/to/deepseek-harness dsh`. Keep the same launcher for installation
+> and startup. New to Harness? Start with its [official setup guide](https://github.com/deepseek-ai/deepseek-harness#run).
 
-Verify the composed bundle without installing `rg`:
+Verify that both the `dsh-agent-team-gui` bundle and the `agent-team-gui` configuration row are present:
 
 ```sh
-dsh --profile web --dump-config | grep -E "agent-team-gui|dsh-agent-team-gui"
+dsh --profile web --dump-config
 ```
 
-Expected output contains both the `dsh-agent-team-gui` bundle layer and the `agent-team-gui` row.
+## Run your first team
 
-> [!CAUTION]
-> `allowBuilds` lets the selected Git dependency execute its build on your machine. Review and pin
-> a tag or full commit SHA. A compiled release tarball does not need Git `prepare` permission.
+Use the included [full-stack delivery recipe](examples/full-stack-delivery.recipe.json), with a
+planner, implementation engineer, and reviewer. You can bind all three to the same working model
+for the first run; multiple providers are optional.
 
-## First team in five steps
+1. Download the recipe JSON. Open **Settings → Teams → Recipes & data** and choose **Choose recipe file**.
+2. Map the placeholder routes to your configured provider/model routes, review the preview, and choose
+   **Create a copy → Import reviewed recipe**. In **Member library**, confirm each member's exact model and tool access.
+3. For this first walkthrough, set the imported team's activation to **Run every time** and member selection to
+   **All members**, then save. The supplied recipe otherwise uses Smart/adaptive selection.
+4. Select an empty scratch project, choose the imported team beside the composer, select **Always use team**, and send the
+   [ready-to-copy task](docs/first-team.md#try-a-small-development-task): build and test a small to-do list.
+5. Open **Team runs** to inspect the plan, outputs, review, and actual Token coverage. Check the delivered
+   files and test results before treating the task as complete.
 
-1. In **Settings → Members**, create reusable members. Pick a configured provider/model, write a
-   narrow role prompt, optionally add a fallback route, and grant only the tools that role needs.
-2. In **Settings → Teams**, create a team and select those members. Leave **Fixed order** off for
-   dynamic planning, or enable it for a repeatable serial pipeline.
-3. Choose **Always**, **Smart**, or **Manual** activation; all members or an adaptive subset;
-   foreground or background response; and optional resilience, budget, or review controls.
-4. Beside the normal composer choose **Team**, **Solo**, or **Inherited**. You can also queue a
-   different team or Solo for only the next eligible message, or set a project default.
-5. Send the task normally. Open **Team runs** to inspect the plan, stages, members, review/repair
-   rounds, outputs, errors, timings, retries, and official Token coverage.
+[Full walkthrough, expected results, and troubleshooting →](docs/first-team.md)
+
+## Create your own team
+
+In **Settings → Teams → Member library**, save each member's role, model, optional fallback, and tool policy.
+In **Settings → Teams**, add those members and choose activation, member selection, and execution options.
+Leave **Fixed order** off for dynamic planning, or enable it for a fixed serial sequence.
+Choose **Team**, **Solo**, or **Inherited** beside the composer to control the current conversation.
 
 ![Choose Team, Solo, or Inherited beside the normal composer](assets/v0.5-composer-mode.png)
+
+*UI example with demonstration data.*
 
 ## How orchestration works
 
@@ -271,6 +288,20 @@ or team versions. Set a positive limit only when automatic cleanup is the behavi
 
 ## Other installation paths
 
+### Git source installation
+
+Use this alternative when you intend to build from source:
+
+```sh
+dsh plugin --profile web add -w github:toolclub/dsh-agent-team-gui#v1.0.1
+```
+
+Git dependencies run this repository's `prepare` build. On pnpm 10+, authorize only the exact
+package key pnpm prints under `allowBuilds` in the profile's `pnpm-workspace.yaml`, then repeat the
+same pinned command. The key can include the resolved revision; copy the actual key from the error.
+This grants that dependency permission to execute build scripts. The compiled release path above
+avoids this step.
+
 ### Exact commit
 
 Resolve and review a full commit SHA, then use the same `allowBuilds` rule as the tagged Git install:
@@ -312,9 +343,9 @@ credential patterns.
 You can send this single instruction inside DeepSeek Harness:
 
 > Follow the installation and security notes in
-> https://github.com/toolclub/dsh-agent-team-gui. Install the reviewed v1.0.1 tag into the Web
-> profile, authorize only `dsh-agent-team-gui` if pnpm asks for `allowBuilds`, restart Web, verify the
-> composed configuration, and report the exact installed revision.
+> https://github.com/toolclub/dsh-agent-team-gui. Install the compiled v1.0.1 Release tarball into
+> the Web profile, restart Web, verify the composed configuration, and report the installed version
+> and installation source.
 
 ## Model tool and public service
 
@@ -344,7 +375,7 @@ DSH itself is pre-stable.
 
 - Web profile only; there is no headless Settings UI. The exported Host service can still be used by
   another in-process plugin that supplies the required services.
-- Declared compatibility is DSH `>=0.1.0-rc.5 <0.2.0`; CI currently verifies rc.6. DSH and this
+- Declared compatibility is DSH `>=0.1.0-rc.5 <0.2.0`; CI currently verifies DSH `0.1.1-rc.2`. DSH and this
   plugin are both pre-stable, so pin versions.
 - Old v0.4 durable definitions and v1 exports remain readable/importable. Editing them must satisfy
   the safer v0.5 new-write limits. A legacy run without a stored plan cannot be faithfully retried
@@ -368,7 +399,7 @@ pnpm run smoke:install
 pnpm run smoke:browser
 ```
 
-CI runs Node 22.19 and Node 24, a fresh DSH rc.6 Web profile, browser keyboard/accessibility/reconnect
+CI runs Node 22.19 and Node 24, a fresh DSH `0.1.1-rc.2` Web profile, browser keyboard/accessibility/reconnect
 journeys, exact Git revision installation, and the community plugin doctor. The detailed product
 contract and evidence matrix live in [docs/v0.5-product-spec.md](docs/v0.5-product-spec.md) and
 [docs/v0.5-acceptance.md](docs/v0.5-acceptance.md).
