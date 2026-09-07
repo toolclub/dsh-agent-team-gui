@@ -152,17 +152,17 @@
     "@deepseek-ai/dsh-tools": "0.1.1-rc.2",
     "@deepseek-ai/schemastery": "^3.18.1",
     "@testing-library/jest-dom": "^7.0.1",
-    "@testing-library/react": "^16.3.0",
-    "@testing-library/user-event": "^14.6.1",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.7",
     "@types/node": "^24.0.0",
     "@types/react": "~18.3.1",
     "@types/react-dom": "~18.3.1",
     "dsh-plugin-doctor": "0.1.0",
-    "happy-dom": "^20.11.2",
+    "happy-dom": "^20.14.0",
     "playwright": "^1.62.1",
     "react-dom": "^18.2.0",
-    "tsdown": "^0.22.14",
+    "tsdown": "^0.23.0",
     "typescript": "^7.0.2",
-    "vitest": "^4.1.10"
+    "vitest": "^5.0.0"
   }
 }
