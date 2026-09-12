@@ -1,8 +1,7 @@
-/** Web UI 与 host service 之间的 loopback-only Connection RPC 适配层。 */
+/** Web UI 与 Host 之间的 RPC，复用 DSH /api 的浏览器认证及来源校验。 */
 
 import type { Context } from '@deepseek-ai/cordis'
-import type { RpcResult } from '@deepseek-ai/dsh-host-apiproxy/api'
-import type { ConnectionRpcHandler } from '@deepseek-ai/dsh-client-connection'
+import { clientRequestSchema, type ConnectionRpcHandler, type ConnectionRpcResult } from '@deepseek-ai/dsh-client-connection'
 import { SessionId } from '@deepseek-ai/dsh-session'
 import { z, ZodError } from 'zod'
 import type { AgentTeamService } from './index.ts'
@@ -11,9 +10,11 @@ import { AgentId, DispatchId, SquadId, type AgentRouteRemap } from './types.ts'
 import { MAX_HANDOFF_SUMMARY_MAX_CHARS, MIN_HANDOFF_SUMMARY_MAX_CHARS } from './limits.ts'
 
 /** 与浏览器入口共享的 RPC channel。 */
-export const AGENT_TEAM_RPC_CHANNEL = '/agent-team-gui'
+export const AGENT_TEAM_RPC_CHANNEL = '/api'
+/** One exact method on the authenticated shared Connection route. */
+export const AGENT_TEAM_RPC_METHOD = 'agentTeamGui'
 /** Browser/host contract revision. A snapshot handshake prevents mixed-version UIs. */
-export const AGENT_TEAM_RPC_API_VERSION = 4
+export const AGENT_TEAM_RPC_API_VERSION = 5
 
 const emptySchema = z.object({}).strict()
 const idSchema = z.string().min(1)
@@ -189,11 +190,11 @@ const snapshotSchema = z.object({
   }).strict(),
 })
 
-function success<T>(value: T): RpcResult<T> {
+function success<T>(value: T): ConnectionRpcResult<T> {
   return { ok: true, value }
 }
 
-function failure(error: unknown, signal: AbortSignal): RpcResult<never> {
+function failure(error: unknown, signal: AbortSignal): ConnectionRpcResult<never> {
   if (signal.aborted) {
     return { ok: false, error: { code: 'cancelled', message: 'agent team request was cancelled', details: {} } }
   }
@@ -558,13 +559,35 @@ export function createAgentTeamRpcHandler(ctx: Context, service: AgentTeamServic
   }
 }
 
-/** Connection 是 Web 可选服务；headless 仍可加载 host service 与模型工具。 */
+const routedRequestSchema = z.object({
+  endpoint: z.string().min(1).max(200),
+  payload: z.unknown(),
+}).strict()
+
+/** Decode a plugin call after the shared Connection route authenticates the browser. */
+export function createAgentTeamFetchHandler(handler: ConnectionRpcHandler) {
+  return async (request: Request): Promise<Response> => {
+    let raw: unknown
+    try { raw = await request.json() } catch { return new Response('body is not JSON', { status: 400 }) }
+    const envelope = clientRequestSchema.safeParse(raw)
+    if (!envelope.success) return new Response('invalid RPC envelope', { status: 400 })
+    if (envelope.data.method !== AGENT_TEAM_RPC_METHOD) return new Response('RPC method mismatch', { status: 400 })
+    const routed = routedRequestSchema.safeParse(envelope.data.payload)
+    if (!routed.success) return new Response('invalid agent team request', { status: 400 })
+    const result = await handler(routed.data.endpoint, routed.data.payload, request.signal)
+    return Response.json({ type: 'server-response', rpcId: envelope.data.rpcId, result })
+  }
+}
+
+/** Register inside the shared authenticated /api carrier when Connection is present. */
 export function registerAgentTeamRpc(ctx: Context, service: AgentTeamService): void {
   ctx.inject(['connection'], (connectionCtx) => {
-    connectionCtx.connection.rpc.handle(
-      AGENT_TEAM_RPC_CHANNEL,
-      createAgentTeamRpcHandler(connectionCtx, service),
-      { authority: 'loopback' },
-    )
+    const handler = createAgentTeamRpcHandler(connectionCtx, service)
+    return connectionCtx.connection.fetch.register({
+      path: `${AGENT_TEAM_RPC_CHANNEL}/${AGENT_TEAM_RPC_METHOD}`,
+      methods: ['POST'],
+      requestBody: 'buffered',
+      fetch: createAgentTeamFetchHandler(handler),
+    })
   })
 }

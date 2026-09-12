@@ -8,6 +8,13 @@ try {
   await fixture.install()
   const firstUrl = await fixture.start()
   const initial = await fixture.assertSnapshot()
+  const unauthenticated = await fetch(new URL('/api/agentTeamGui', firstUrl), {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ type: 'client-request', rpcId: 'unauthenticated-smoke', method: 'agentTeamGui', payload: { endpoint: 'snapshot', payload: {} } }),
+    signal: AbortSignal.timeout(10_000),
+  })
+  invariant(unauthenticated.status === 401, 'plugin RPC accepted a request without the DSH browser session')
   const seed = await fixture.seedDefinitions()
   await fixture.assertDefinitions(seed)
   const versions = await fixture.rpc('squad/versions', { id: seed.squadId })

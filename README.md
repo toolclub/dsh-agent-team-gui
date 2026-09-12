@@ -13,7 +13,7 @@ Save the team once, choose a model for each member, and reuse it across projects
 Follow the plan, member outputs, retries, and provider-reported Token usage in one Run Center.
 This is an unofficial community plugin for the **DeepSeek Harness Web profile**.
 
-[Watch the 80-second UI guide](https://github.com/toolclub/dsh-agent-team-gui/blob/main/assets/promotion-walkthrough-zh.mp4) · [Install v1.0.1](#install) · [Run your first team](docs/first-team.md) ·
+[Watch the 80-second UI guide](https://github.com/toolclub/dsh-agent-team-gui/blob/main/assets/promotion-walkthrough-zh.mp4) · [Install v1.1.0](#install) · [Run your first team](docs/first-team.md) ·
 [Example recipe](examples/full-stack-delivery.recipe.json) ·
 [Share a workflow](https://github.com/toolclub/dsh-agent-team-gui/discussions/1)
 
@@ -40,15 +40,20 @@ Teams**, then use it across projects and conversations.
 
 ## Install
 
+Upgrading DSH from 0.1.1? Use plugin **v1.1.0** for DSH **0.1.5**. This release fixes
+`source.subscribe` during plugin loading, migrates reconnect and Session APIs, and keeps the existing
+team definitions and run store. Restart DSH and refresh the browser after upgrading. The CLI may
+report `0.1.5-rc.1` while its compatible internal packages resolve to `0.1.5-rc.2`.
+
 Requirements: a working DeepSeek Harness **Web** profile, at least one configured provider/model,
 Node.js `>=22.19.0 <23` or `>=24.0.0`, and pnpm. Declared DSH compatibility is
-`>=0.1.0-rc.5 <0.2.0`; the v1.0.1 release was verified against DSH `0.1.1-rc.2`.
+`>=0.1.5-rc.1 <0.1.6-0`; the v1.1.0 release was verified against DSH `0.1.5-rc.1`.
 
 **Recommended: install the compiled release package.** It includes the built Host and client files,
 so installation does not run this plugin's Git `prepare` build or require its `allowBuilds` entry.
 
 ```sh
-dsh plugin --profile web add -w https://github.com/toolclub/dsh-agent-team-gui/releases/download/v1.0.1/dsh-agent-team-gui-1.0.1.tgz
+dsh plugin --profile web add -w https://github.com/toolclub/dsh-agent-team-gui/releases/download/v1.1.0/dsh-agent-team-gui-1.1.0.tgz
 dsh --profile web
 ```
 
@@ -56,12 +61,12 @@ Stop and restart an already-running DSH Web process after installing or upgradin
 **Settings → Teams**. If a plugin marketplace chooses Git installation and fails, use the direct
 release command above; see [installation troubleshooting](docs/first-team.md#installation-troubleshooting).
 
-[Release notes and checksum](https://github.com/toolclub/dsh-agent-team-gui/releases/tag/v1.0.1) ·
+[Release notes and checksum](https://github.com/toolclub/dsh-agent-team-gui/releases/tag/v1.1.0) ·
 [Git/source installation](#git-source-installation)
 
 > [!TIP]
 > If `dsh` is not on `PATH`, use the launcher that starts your working Harness installation.
-> With npm, replace `dsh` with `npx @deepseek-ai/dsh@0.1.1-rc.2`; from a source checkout, replace
+> With npm, replace `dsh` with `npx @deepseek-ai/dsh@0.1.5-rc.1`; from a source checkout, replace
 > it with `pnpm --dir /absolute/path/to/deepseek-harness dsh`. Keep the same launcher for installation
 > and startup. New to Harness? Start with its [official setup guide](https://github.com/deepseek-ai/deepseek-harness#run).
 
@@ -293,7 +298,7 @@ or team versions. Set a positive limit only when automatic cleanup is the behavi
 Use this alternative when you intend to build from source:
 
 ```sh
-dsh plugin --profile web add -w github:toolclub/dsh-agent-team-gui#v1.0.1
+dsh plugin --profile web add -w github:toolclub/dsh-agent-team-gui#v1.1.0
 ```
 
 Git dependencies run this repository's `prepare` build. On pnpm 10+, authorize only the exact
@@ -331,7 +336,7 @@ output directory; audits the tarball and secrets; and boots an isolated temporar
 ```sh
 mkdir -p dist
 pnpm pack --pack-destination dist
-dsh plugin --profile web add -w ./dist/dsh-agent-team-gui-1.0.1.tgz
+dsh plugin --profile web add -w ./dist/dsh-agent-team-gui-1.1.0.tgz
 ```
 
 The package audit verifies runtime/declaration closure, examples, governance files, screenshots,
@@ -343,7 +348,7 @@ credential patterns.
 You can send this single instruction inside DeepSeek Harness:
 
 > Follow the installation and security notes in
-> https://github.com/toolclub/dsh-agent-team-gui. Install the compiled v1.0.1 Release tarball into
+> https://github.com/toolclub/dsh-agent-team-gui. Install the compiled v1.1.0 Release tarball into
 > the Web profile, restart Web, verify the composed configuration, and report the installed version
 > and installation source.
 
@@ -360,8 +365,8 @@ DSH itself is pre-stable.
 
 ## Security and privacy
 
-- The dedicated RPC channel is registered loopback-only and validates every payload/result. This is
-  not an authentication layer for exposing DSH Web to the public Internet.
+- Plugin RPC uses `/api/agentTeamGui` behind DSH's browser-session cookie authentication and
+  Host/Origin checks. Requests and results are validated; there is no separate unauthenticated channel.
 - Provider credentials are never copied into plugin records, recipes, examples, logs, or exports.
 - Durable local storage does contain team role prompts, selected route names, conversation/project
   identifiers, user tasks, run outputs, errors, and Token usage. Protect the DSH home directory.
@@ -375,7 +380,7 @@ DSH itself is pre-stable.
 
 - Web profile only; there is no headless Settings UI. The exported Host service can still be used by
   another in-process plugin that supplies the required services.
-- Declared compatibility is DSH `>=0.1.0-rc.5 <0.2.0`; CI currently verifies DSH `0.1.1-rc.2`. DSH and this
+- Declared compatibility is DSH `>=0.1.5-rc.1 <0.1.6-0`; CI currently verifies DSH `0.1.5-rc.1`. DSH and this
   plugin are both pre-stable, so pin versions.
 - Old v0.4 durable definitions and v1 exports remain readable/importable. Editing them must satisfy
   the safer v0.5 new-write limits. A legacy run without a stored plan cannot be faithfully retried
@@ -399,7 +404,7 @@ pnpm run smoke:install
 pnpm run smoke:browser
 ```
 
-CI runs Node 22.19 and Node 24, a fresh DSH `0.1.1-rc.2` Web profile, browser keyboard/accessibility/reconnect
+CI runs Node 22.19 and Node 24, a fresh DSH `0.1.5-rc.1` Web profile, browser keyboard/accessibility/reconnect
 journeys, exact Git revision installation, and the community plugin doctor. The detailed product
 contract and evidence matrix live in [docs/v0.5-product-spec.md](docs/v0.5-product-spec.md) and
 [docs/v0.5-acceptance.md](docs/v0.5-acceptance.md).

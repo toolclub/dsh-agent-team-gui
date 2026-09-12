@@ -10,7 +10,7 @@ const DEFINITION_REVISION = 17
 
 function catalog(overrides: Partial<TeamSnapshot> = {}): TeamSnapshot {
   return {
-    apiVersion: 4,
+    apiVersion: 5,
     agents: [
       { id: 'agent-1', name: 'Builder', systemPrompt: 'Build', provider: 'p', model: 'm' },
       { id: 'agent-2', name: 'Reviewer', systemPrompt: 'Review', provider: 'p', model: 'm' },

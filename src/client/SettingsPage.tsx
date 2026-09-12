@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import type { InjectFace, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
-import type {} from '@deepseek-ai/dsh-client-runtime/client'
+import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
+import type { SessionListState } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { AgentView, PlanView, SquadVersionView, SquadView, TeamSnapshot } from './contracts.ts'
 import { AgentTeamController, errorText } from './controller.ts'
 import {
@@ -50,7 +51,7 @@ function TeamSettingsPageContent({ controller, close, useSessions }: TeamSetting
   const [notice, setNotice] = useState('')
   const [squadConflict, setSquadConflict] = useState(false)
   const [agentConflict, setAgentConflict] = useState(false)
-  const currentSession = useSessions(state => state.current)
+  const currentSession = useSessions((state: SessionListState) => state.current)
   const rootRef = useRef<HTMLDivElement>(null)
   const catalogRevisionRef = useRef<number | null>(null)
 

@@ -1,7 +1,7 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import type { InjectFace, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
-import type {} from '@deepseek-ai/dsh-client-runtime/client'
-import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
+import type { InputState } from '@deepseek-ai/dsh-client-ui-conversation/client'
+import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import type { ModeResponse, NextOverride, RunView } from './contracts.ts'
 import { AgentTeamController, errorText, isAuthoritativeModeResponse } from './controller.ts'
 import { useI18n } from './i18n.ts'
@@ -43,7 +43,7 @@ export function TeamComposerControl(props: TeamComposerControlProps): ReactNode 
   return <SlotErrorBoundary controller={props.controller} testId="agent-team-composer"><TeamComposerControlContent {...props} /></SlotErrorBoundary>
 }
 
-function TeamComposerControlContent({ controller, sessionId, input }: TeamComposerControlProps): ReactNode {
+function TeamComposerControlContent({ controller, sessionId, useInput }: TeamComposerControlProps): ReactNode {
   const { t } = useI18n(controller.i18n)
   const catalog = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot)
   const [state, setState] = useState<ModeState>(INITIAL_MODE)
@@ -161,7 +161,8 @@ function TeamComposerControlContent({ controller, sessionId, input }: TeamCompos
   const selectedTeam = useMemo(() => catalog.data.squads.find(item => item.id === state.selected), [catalog.data.squads, state.selected])
   const effectiveTeam = useMemo(() => catalog.data.squads.find(item => item.id === state.effective?.squadId), [catalog.data.squads, state.effective?.squadId])
   const hasSquads = catalog.data.squads.length > 0
-  const locked = state.busy || input.phase === 'submitting'
+  const inputPhase = useInput((input: InputState) => input.phase)
+  const locked = state.busy || inputPhase === 'submitting'
   const effectiveActivation = effectiveTeam?.activationMode ?? 'always'
   const modeGroupName = `agent-team-conversation-mode:${sessionId}`
 

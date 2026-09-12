@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.1.0 — 2026-09-12
+
+- Support the DSH 0.1.5 API generation and restrict declared compatibility to
+  `>=0.1.5-rc.1 <0.1.6-0`; 1.0.1 remains the previous DSH 0.1.1 integration.
+- Fix plugin loading (`source.subscribe`) by observing `connection.generation`; restore
+  catalog refresh when a browser survives a Host restart.
+- Replace removed client-runtime and APIProxy dependencies with current renderer, Session,
+  and Connection contracts. Read composer state through the current `useInput` hook.
+- Route plugin calls through `/api/agentTeamGui` with DSH browser-cookie and Host/Origin
+  checks. RPC contract v5 rejects stale mixed frontend/backend assets.
+- Migrate Session event access to `snapshotEvents()` and seeded usage baselines to
+  `firstLiveSeq`. Keep existing team definitions, recipes, versions, and run history.
+- Update installation and browser verification for authenticated launch URLs, the current
+  official Remote envelopes, and changing process tokens on same-origin Host restart.
+- Use secondary text colors for small labels so both themes meet contrast requirements
+  after the Harness palette change.
+
 ## 1.0.1 — 2026-08-23
 
 - Treat a DSH child that settles with `stopReason: "error"` but delivers non-empty plain text as a

@@ -77,7 +77,7 @@ export class OfficialUsageMeter {
   baselineFor(run: SubagentRun): TokenUsageProjection | undefined {
     if (run.localAgent === undefined) return undefined
     try {
-      if ((run.localAgent.session.header.seedLength ?? 0) === 0) return undefined
+      if (run.localAgent.session.firstLiveSeq === 0) return undefined
     } catch { return undefined }
     return this.projectionFor(run)
   }

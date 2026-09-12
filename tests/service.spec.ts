@@ -592,7 +592,7 @@ describe('AgentTeamService dispatch', () => {
     const state = createService({
       start: async (_provider, request) => {
         call += 1
-        const localAgent = { id: SessionId(`usage-${call}`), session: { marker: call } } as unknown as Agent
+        const localAgent = { id: SessionId(`usage-${call}`), session: { marker: call, firstLiveSeq: 0 } } as unknown as Agent
         return {
           id: localAgent.id,
           localAgent,

@@ -135,12 +135,12 @@ describe('quality script safety helpers', () => {
       globalThis.fetch = async () => new Response(JSON.stringify({
         type: 'server-response',
         rpcId: 'agent-team-smoke-1-0',
-        result: { ok: true, value: { apiVersion: 4 } },
+        result: { ok: true, value: { apiVersion: 5 } },
       }), { status: 200, headers: { 'content-type': 'application/json' } })
       const now = Date.now
       Date.now = () => 1
       try {
-        await expect(fixture.rpc('snapshot')).resolves.toEqual({ apiVersion: 4 })
+        await expect(fixture.rpc('snapshot')).resolves.toEqual({ apiVersion: 5 })
       } finally {
         Date.now = now
       }

@@ -188,8 +188,9 @@ export class ExecutionApplicationService extends DefinitionApplicationService {
    * first one settles.
    */
   private latestHumanMessageId(parent: Agent): string | undefined {
-    for (let index = parent.session.events.length - 1; index >= 0; index -= 1) {
-      const event = parent.session.events[index]
+    const events = parent.session.snapshotEvents()
+    for (let index = events.length - 1; index >= 0; index -= 1) {
+      const event = events[index]
       if (event?.type === 'user/message' && event.data.source.kind === 'user') return event.data.id
     }
     return undefined
@@ -751,7 +752,7 @@ export class ExecutionApplicationService extends DefinitionApplicationService {
     const plannerToolScope = capabilities?.toolFilter === false
       ? undefined
       : { allow: [] as string[] }
-    const recentContext = planningContext !== 'recent' ? '' : parent.session.events.slice(-80).flatMap((event) => {
+    const recentContext = planningContext !== 'recent' ? '' : parent.session.snapshotEvents().slice(-80).flatMap((event) => {
       if (event.type === 'user/message') return [`USER: ${this.resultText(event.data.content).slice(0, 2_000)}`]
       if (event.type === 'assistant/message') return [`ASSISTANT: ${this.resultText(event.data.message.content).slice(0, 2_000)}`]
       return []

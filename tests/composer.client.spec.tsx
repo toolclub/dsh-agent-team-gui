@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { userEvent } from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { TeamComposerControl, type TeamComposerControlProps } from '../src/client/ComposerControl.tsx'
+import type { InputState } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { AgentTeamRpc, ModeResponse, TeamSnapshot } from '../src/client/contracts.ts'
 import { AgentTeamController } from '../src/client/controller.ts'
 import type { LocaleService } from '../src/client/i18n.ts'
@@ -9,7 +10,7 @@ import type { LocaleService } from '../src/client/i18n.ts'
 const snapshot = (squads: TeamSnapshot['squads'] = [{
   id: 'team-1', name: 'Delivery', members: ['agent-1'], collabNote: '',
 }]): TeamSnapshot => ({
-  apiVersion: 4,
+  apiVersion: 5,
   agents: [{ id: 'agent-1', name: 'Builder', systemPrompt: 'Build', provider: 'p', model: 'm' }],
   squads,
   models: [{ provider: 'p', name: 'Provider', models: [{ id: 'm', name: 'Model' }] }],
@@ -31,7 +32,8 @@ function mode(overrides: Partial<ModeResponse> = {}): ModeResponse {
 }
 
 function composerProps(controller: AgentTeamController, sessionId = 'session-1'): TeamComposerControlProps {
-  return { controller, sessionId, input: { phase: 'plain' } } as unknown as TeamComposerControlProps
+  const useInput = <T,>(selector: (input: InputState) => T): T => selector({ phase: 'plain' } as InputState)
+  return { controller, sessionId, useInput } as unknown as TeamComposerControlProps
 }
 
 async function readyController(rpc: AgentTeamRpc): Promise<AgentTeamController> {
