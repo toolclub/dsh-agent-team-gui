@@ -6,6 +6,12 @@ import { chromium } from 'playwright'
 import { invariant, REPOSITORY_ROOT, TemporaryWorkspace } from './common.mjs'
 import { DshWebFixture } from './dsh-fixture.mjs'
 
+function isAgentTeamRequest(request, endpoint) {
+  return request.method() === 'POST'
+    && new URL(request.url()).pathname === '/api/agentTeamGui'
+    && request.postDataJSON()?.payload?.endpoint === endpoint
+}
+
 const REQUIRED_CAPTURES = [
   'v0.5-teams-settings.png',
   'v0.5-composer-mode.png',
@@ -168,12 +174,12 @@ try {
   page = await context.newPage()
   observe(page)
   const firstModeRequest = page.waitForRequest(
-    request => request.url().includes('/agent-team-gui/mode/get') && request.method() === 'POST',
+    request => isAgentTeamRequest(request, 'mode/get'),
     { timeout: 60_000 },
   )
-  await page.goto(fixture.baseUrl, { waitUntil: 'domcontentloaded' })
+  await page.goto(fixture.launchUrl, { waitUntil: 'domcontentloaded' })
   await completeOnboarding(page)
-  const sessionId = (await firstModeRequest).postDataJSON()?.payload?.sessionId
+  const sessionId = (await firstModeRequest).postDataJSON()?.payload?.payload?.sessionId
   invariant(typeof sessionId === 'string' && sessionId !== '', 'README capture could not resolve the active conversation session')
   invariant(sessionId === createdSessionId, `README capture selected ${sessionId} instead of the isolated session ${createdSessionId}`)
   await fixture.rpc('mode/set', { sessionId, state: 'enabled', squadId: seed.squadId })
@@ -190,16 +196,16 @@ try {
   page = await context.newPage()
   observe(page)
   const reopenedModeRequest = page.waitForRequest(
-    request => request.url().includes('/agent-team-gui/mode/get') && request.method() === 'POST',
+    request => isAgentTeamRequest(request, 'mode/get'),
     { timeout: 60_000 },
   )
   const snapshotResponse = page.waitForResponse(
-    response => response.url().includes('/agent-team-gui/snapshot') && response.request().method() === 'POST',
+    response => isAgentTeamRequest(response.request(), 'snapshot'),
     { timeout: 60_000 },
   )
-  await page.goto(fixture.baseUrl, { waitUntil: 'domcontentloaded' })
+  await page.goto(fixture.launchUrl, { waitUntil: 'domcontentloaded' })
   invariant((await snapshotResponse).ok(), 'README capture snapshot request failed')
-  invariant((await reopenedModeRequest).postDataJSON()?.payload?.sessionId === sessionId, 'README capture did not reopen the seeded conversation')
+  invariant((await reopenedModeRequest).postDataJSON()?.payload?.payload?.sessionId === sessionId, 'README capture did not reopen the seeded conversation')
   await completeOnboarding(page)
 
   const composer = page.locator('[data-testid="agent-team-composer"]')

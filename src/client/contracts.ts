@@ -1,6 +1,6 @@
-/** Browser-side mirror of the loopback RPC v3 contract. No credentials cross this boundary. */
+/** Browser-side mirror of the authenticated RPC v5 contract. No provider credentials cross this boundary. */
 
-export const AGENT_TEAM_RPC_API_VERSION = 4
+export const AGENT_TEAM_RPC_API_VERSION = 5
 
 export type ActivationMode = 'always' | 'smart' | 'manual'
 export type MemberSelectionMode = 'all' | 'adaptive'

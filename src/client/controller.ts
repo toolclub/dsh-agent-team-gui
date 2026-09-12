@@ -11,7 +11,7 @@ export interface ControllerSnapshot {
   revision: number
 }
 
-interface HostDescriptionSource {
+interface ConnectionGenerationSource {
   getSnapshot(): unknown | undefined
   subscribe(listener: () => void): () => void
 }
@@ -479,7 +479,7 @@ function isStringPair(value: Record<string, unknown>, first: string, second: str
 }
 
 /** Refresh the durable catalog after every completed DSH connection handshake. */
-export function refreshAgentTeamsOnReconnect(controller: AgentTeamController, source: HostDescriptionSource): () => void {
+export function refreshAgentTeamsOnReconnect(controller: AgentTeamController, source: ConnectionGenerationSource): () => void {
   const retryDelays = [100, 300, 1_000, 2_000, 5_000, 10_000, 30_000] as const
   let generation = 0
   let timer: ReturnType<typeof setTimeout> | undefined

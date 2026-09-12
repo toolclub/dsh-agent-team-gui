@@ -10,11 +10,11 @@ use seeded UI example data; they are not evidence that this exercise completed.
 ## Install and open the team settings
 
 You need a working DeepSeek Harness Web profile, pnpm, Node.js `>=22.19.0 <23` or `>=24.0.0`, and at
-least one working provider/model route. DSH compatibility is declared as `>=0.1.0-rc.5 <0.2.0`;
-the v1.0.1 release and current CI use DSH `0.1.1-rc.2`.
+least one working provider/model route. DSH compatibility is declared as `>=0.1.5-rc.1 <0.1.6-0`;
+the v1.1.0 release and current CI use DSH `0.1.5-rc.1`.
 
 ```sh
-dsh plugin --profile web add -w https://github.com/toolclub/dsh-agent-team-gui/releases/download/v1.0.1/dsh-agent-team-gui-1.0.1.tgz
+dsh plugin --profile web add -w https://github.com/toolclub/dsh-agent-team-gui/releases/download/v1.1.0/dsh-agent-team-gui-1.1.0.tgz
 dsh --profile web
 ```
 
@@ -131,9 +131,9 @@ the lead model's final answer after team handoff.
 
 | Symptom | Next step |
 | --- | --- |
-| `dsh` is not found | Use the launcher for your working Harness. For npm, substitute `npx @deepseek-ai/dsh@0.1.1-rc.2` for `dsh`; from source, use `pnpm --dir /absolute/path/to/deepseek-harness dsh`. Use the same launcher for install and startup. |
+| `dsh` is not found | Use the launcher for your working Harness. For npm, substitute `npx @deepseek-ai/dsh@0.1.5-rc.1` for `dsh`; from source, use `pnpm --dir /absolute/path/to/deepseek-harness dsh`. Use the same launcher for install and startup. |
 | Marketplace Git install fails | Install the compiled Release URL above directly. If the failed Git dependency remains, remove it with `dsh plugin --profile web remove dsh-agent-team-gui`, then retry the release command. |
-| Release download fails | Download the `.tgz` from [v1.0.1 Releases](https://github.com/toolclub/dsh-agent-team-gui/releases/tag/v1.0.1), then install its local absolute path. |
+| Release download fails | Download the `.tgz` from [v1.1.0 Releases](https://github.com/toolclub/dsh-agent-team-gui/releases/tag/v1.1.0), then install its local absolute path. |
 | Teams are missing or Host/client versions disagree | Confirm the Web profile, restart the DSH process, and refresh the browser. Record both plugin and DSH versions. |
 | Recipe import stays disabled | Map all missing routes, wait for preview, and refresh the preview if another window changed the definitions. |
 | Sending a message does not start the team | Check the selected team, conversation mode, one-message override, and the saved activation/member-selection settings. |

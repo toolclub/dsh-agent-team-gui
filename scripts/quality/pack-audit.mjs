@@ -62,7 +62,6 @@ const ALLOWED_CLIENT_REQUIRES = new Set([
   '@deepseek-ai/dsh-client-schema-form',
   '@deepseek-ai/dsh-client-connection/client',
   '@deepseek-ai/dsh-client-locale/client',
-  '@deepseek-ai/dsh-client-runtime/client',
   '@deepseek-ai/dsh-client-ui-settings/client',
 ])
 
@@ -107,14 +106,14 @@ function auditClientClosure(source) {
   invariant(source.includes('window.__ModuleLoader__.load({'), 'client bundle does not register with window.__ModuleLoader__')
   invariant(source.includes('id: "dsh-agent-team-gui"'), 'client bundle registers the wrong ModuleLoader id')
   invariant(!/^\s*import\s/m.test(source), 'client bundle contains a top-level ESM import')
-  invariant(/\bapiVersion:\s*4\b/.test(source), 'client bundle does not contain the RPC API v4 request contract')
+  invariant(/\bapiVersion:\s*5\b/.test(source), 'client bundle does not contain the RPC API v5 request contract')
   invariant(!/\bapiVersion:\s*3\b/.test(source), 'client bundle still contains the stale RPC API v3 contract')
 }
 
 function auditHostClosure(source, manifest) {
   invariant(!source.includes('node_modules/.pnpm/'), 'host bundle contains an inlined dependency filesystem path')
   invariant(!source.includes('class JobsService'), 'official @deepseek-ai/dsh-jobs implementation was bundled into the plugin')
-  invariant(/\bapiVersion:\s*4\b/.test(source), 'host bundle does not expose RPC API v4')
+  invariant(/\bapiVersion:\s*5\b/.test(source), 'host bundle does not expose RPC API v5')
   invariant(!/\bapiVersion:\s*3\b/.test(source), 'host bundle still contains stale RPC API v3 output')
   const imports = [
     ...source.matchAll(/\bfrom\s+(['"])([^'"]+)\1/g),

@@ -47,6 +47,7 @@ export class DshWebFixture {
     this.buildRunner = new CommandRunner({ cwd: REPOSITORY_ROOT, env })
     this.child = undefined
     this.baseUrl = undefined
+    this.cookie = undefined
     this.port = undefined
     this.output = ''
     this.rpcCounter = 0
@@ -105,7 +106,8 @@ export class DshWebFixture {
   async start() {
     invariant(this.child === undefined, 'DSH Web fixture is already running')
     this.output = ''
-    const child = spawn(this.dshBin, ['--profile', 'web', '--port', this.port ?? '0'], {
+    this.cookie = undefined
+    const child = spawn(this.dshBin, ['--profile', 'web', '--port', this.port ?? '0', '--no-open'], {
       cwd: this.runtimeCwd,
       env: this.env,
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -115,7 +117,7 @@ export class DshWebFixture {
     const onData = chunk => {
       const text = chunk.toString()
       this.output += text
-      if (envFlag('SMOKE_VERBOSE')) process.stdout.write(text)
+      if (envFlag('SMOKE_VERBOSE')) process.stdout.write(text.replace(/([?&]token=)[^\s)]+/g, '$1<redacted>'))
     }
     child.stdout.on('data', onData)
     child.stderr.on('data', onData)
@@ -141,19 +143,32 @@ export class DshWebFixture {
         reject(new Error(`dsh Web exited before readiness with code ${code}\n${this.output}`))
       })
     })
-    this.baseUrl = baseUrl
     this.port = new URL(baseUrl).port
-    const { response, body: html } = await this.boundedFetch('Web root', baseUrl)
+    const launch = new URL(baseUrl)
+    let rootUrl = baseUrl
+    if (launch.searchParams.has('token')) {
+      const exchange = await this.boundedFetch('Web authentication', baseUrl, { redirect: 'manual' })
+      invariant(exchange.response.status >= 300 && exchange.response.status < 400, `Web authentication returned HTTP ${exchange.response.status}`)
+      const cookie = exchange.response.headers.get('set-cookie')?.split(';', 1)[0]
+      invariant(cookie !== undefined && cookie.includes('='), 'Web authentication returned no session cookie')
+      this.cookie = cookie
+      rootUrl = new URL(exchange.response.headers.get('location') ?? '/', baseUrl).href
+    }
+    this.launchUrl = baseUrl
+    this.baseUrl = launch.origin
+    const { response, body: html } = await this.boundedFetch('Web root', rootUrl)
     invariant(response.ok, `Web root returned HTTP ${response.status}`)
     invariant(/<html/i.test(html), 'Web root did not return an HTML document')
-    return baseUrl
+    return this.baseUrl
   }
 
   async boundedFetch(label, input, init = {}) {
     const controller = new AbortController()
     const timer = setTimeout(() => { controller.abort() }, this.timeoutMs)
     try {
-      const response = await fetch(input, { ...init, signal: controller.signal })
+      const headers = new Headers(init.headers)
+      if (this.cookie !== undefined && !headers.has('cookie')) headers.set('cookie', this.cookie)
+      const response = await fetch(input, { ...init, headers, signal: controller.signal })
       const body = await response.text()
       return { response, body }
     } catch (error) {
@@ -169,10 +184,10 @@ export class DshWebFixture {
   async rpc(endpoint, payload = {}) {
     invariant(this.baseUrl !== undefined, 'DSH Web fixture is not running')
     const rpcId = `agent-team-smoke-${Date.now()}-${this.rpcCounter++}`
-    const { response, body: text } = await this.boundedFetch(endpoint, `${this.baseUrl}/agent-team-gui/${endpoint}`, {
+    const { response, body: text } = await this.boundedFetch(endpoint, new URL('/api/agentTeamGui', this.baseUrl), {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ type: 'client-request', rpcId, method: endpoint, payload }),
+      body: JSON.stringify({ type: 'client-request', rpcId, method: 'agentTeamGui', payload: { endpoint, payload } }),
     })
     if (!response.ok) {
       throw new Error(`${endpoint} returned HTTP ${response.status}: ${text}`)
@@ -189,10 +204,11 @@ export class DshWebFixture {
   async officialRpc(method, payload = {}) {
     invariant(this.baseUrl !== undefined, 'DSH Web fixture is not running')
     const rpcId = `dsh-smoke-${Date.now()}-${this.officialRpcCounter++}`
-    const { response, body: text } = await this.boundedFetch(method, `${this.baseUrl}/api/${method}`, {
+    const endpoint = method.replace('.', '/')
+    const { response, body: text } = await this.boundedFetch(method, new URL(`/api/${endpoint}`, this.baseUrl), {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ type: 'client-request', rpcId, method, payload }),
+      body: JSON.stringify({ type: 'client-request', rpcId, method: endpoint, payload: { args: { request: payload } } }),
     })
     if (!response.ok) {
       throw new Error(`${method} returned HTTP ${response.status}: ${text}`)
@@ -223,6 +239,7 @@ export class DshWebFixture {
    */
   async engageBrowserSession(sessionId) {
     const prompted = await this.officialRpc('session.prompt', {
+      requestId: randomUUID(),
       sessionId,
       mode: 'queue',
       content: [{ type: 'text', text: 'Hermetic UI verification: open the isolated session views.' }],

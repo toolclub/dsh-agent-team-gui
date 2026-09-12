@@ -60,14 +60,14 @@ jobs:
           node-version: 22.19.0
           cache: pnpm
       - run: pnpm install --frozen-lockfile --ignore-scripts
-      - run: npm install --global @deepseek-ai/dsh@0.1.1-rc.2
+      - run: npm install --global @deepseek-ai/dsh@0.1.5-rc.1
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm run smoke:install
         env:
-          API_VERSION: 4
+          API_VERSION: 5
       - run: pnpm run smoke:browser
         env:
-          API_VERSION: 4
+          API_VERSION: 5
           SMOKE_SCREENSHOT_DIR: .artifacts/browser-smoke
       - name: Upload isolated diagnostics on failure
         if: failure()
@@ -103,10 +103,10 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22.19.0
-      - run: npm install --global @deepseek-ai/dsh@0.1.1-rc.2
+      - run: npm install --global @deepseek-ai/dsh@0.1.5-rc.1
       - run: pnpm run smoke:install
         env:
-          API_VERSION: 4
+          API_VERSION: 5
           PLUGIN_SPEC: github:toolclub/dsh-agent-team-gui#${{ github.sha }}
       - name: Upload exact-install diagnostics on failure
         if: failure()

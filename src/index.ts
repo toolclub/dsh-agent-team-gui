@@ -15,7 +15,7 @@ export { AgentTeamError } from './tools/domain/host.ts'
 export type Config = AgentTeamConfig
 export { agentExportItemSchema, agentRecordSchema, agentTeamDomainSpec, agentTeamExportSchema, agentTeamRecipeSchema, sessionNextSquadModeSchema, sessionSquadModeSchema, squadExportItemSchema, squadRecordSchema } from './spec.ts'
 export { createDispatchToSquadTool } from './tools/dispatch-to-squad.ts'
-export { AGENT_TEAM_RPC_CHANNEL, createAgentTeamRpcHandler } from './rpc.ts'
+export { AGENT_TEAM_RPC_CHANNEL, AGENT_TEAM_RPC_METHOD, createAgentTeamRpcHandler } from './rpc.ts'
 
 interface SystemPromptService {
   section(section: {
@@ -44,6 +44,7 @@ export class AgentTeamService extends ExecutionApplicationService {
 
   constructor(ctx: Context, config: AgentTeamConfig) {
     super(ctx, config)
+    registerAgentTeamRpc(ctx, this)
   }
 
   protected async [Service.init](): Promise<void> {
@@ -74,7 +75,6 @@ export class AgentTeamService extends ExecutionApplicationService {
       text: context => this.squadModeGuidance(context.agent),
     })
     this.registerConversationOrchestration()
-    registerAgentTeamRpc(this.ctx, this)
     this.ctx.logger.info('[agent-team-gui] v0.5 bounded DAG orchestration, durable runs, recipes and insights ready')
   }
 

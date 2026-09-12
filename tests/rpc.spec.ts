@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import { SessionId } from '@deepseek-ai/dsh-session'
-import type { RpcResult } from '@deepseek-ai/dsh-host-apiproxy/api'
+import type { ConnectionRpcResult } from '@deepseek-ai/dsh-client-connection'
 import { createAgentTeamRpcHandler } from '../src/rpc.ts'
 import type { AgentId } from '../src/types.ts'
 import type { AgentTeamExportDocument, AgentTeamImportResult, SquadDispatchResult } from '../src/types.ts'
@@ -9,9 +9,9 @@ import { agent, createService, populate, researcherId, squadId, writerId } from 
 
 type Handler = ReturnType<typeof createAgentTeamRpcHandler>
 
-/** Run one endpoint with a typed success value; the handler itself is RpcResult<unknown>. */
-async function call<T>(handler: Handler, endpoint: string, payload: unknown, signal: AbortSignal): Promise<RpcResult<T>> {
-  return await handler(endpoint, payload, signal) as RpcResult<T>
+/** Run one endpoint with a typed success value; the handler itself returns an unknown connection result. */
+async function call<T>(handler: Handler, endpoint: string, payload: unknown, signal: AbortSignal): Promise<ConnectionRpcResult<T>> {
+  return await handler(endpoint, payload, signal) as ConnectionRpcResult<T>
 }
 
 interface SnapshotValue {
@@ -42,7 +42,7 @@ describe('agent team RPC handler', () => {
     const result = await call<SnapshotValue>(handler, 'snapshot', {}, signal())
     expect(result.ok).toBe(true)
     if (!result.ok) return
-    expect(result.value.apiVersion).toBe(4)
+    expect(result.value.apiVersion).toBe(5)
     expect(result.value.capabilities).toMatchObject({ dags: true, recipes: true, remoteRecipeFetch: false })
     expect(result.value.agents).toHaveLength(3)
     expect(result.value.squads).toHaveLength(1)

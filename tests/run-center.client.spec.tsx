@@ -395,7 +395,7 @@ describe('Team Run Center', () => {
         return (lists === 1 ? { runs: [{ id: 'broken' }] } : { runs: [] }) as T
       }
       if (endpoint === 'snapshot') return {
-        apiVersion: 4, agents: [], squads: [], models: [], tools: [],
+        apiVersion: 5, agents: [], squads: [], models: [], tools: [],
         capabilities: { smartActivation: true, dags: true, qualityGate: true, backgroundRuns: true, recipes: true, remoteRecipeFetch: false, insights: true, reproducibleVersions: true },
         defaults: { executionMode: 'serial', fixedOrderExecutionMode: 'serial', contextMode: 'fork', planningContext: 'full', plannerMaxTokens: 2_048 },
       } as T

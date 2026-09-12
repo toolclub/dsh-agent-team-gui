@@ -723,11 +723,11 @@ describe('v0.5 release-hardening regressions', () => {
     const state = createService({
       start: async (_provider, request) => {
         if (request.label?.includes('workflow planner')) {
-          plannerAgent = { id: SessionId('live-planner'), session: { header: {} } } as unknown as Agent
+          plannerAgent = { id: SessionId('live-planner'), session: { header: {}, firstLiveSeq: 0 } } as unknown as Agent
           return { id: plannerAgent.id, localAgent: plannerAgent, result: planner.promise, async dispose() {} }
         }
         if (request.label?.includes('Quality review')) {
-          reviewAgent = { id: SessionId('live-review'), session: { header: {} } } as unknown as Agent
+          reviewAgent = { id: SessionId('live-review'), session: { header: {}, firstLiveSeq: 0 } } as unknown as Agent
           return { id: reviewAgent.id, localAgent: reviewAgent, result: review.promise, async dispose() {} }
         }
         return { id: SessionId('member'), localAgent: undefined, result: Promise.resolve({ output: [], structured: { summary: 'done', deliverables: [], risks: [], changedFiles: [] }, stopReason: 'completed' as const }), async dispose() {} }
@@ -1232,7 +1232,7 @@ describe('v0.5 P1 compatibility and mutation certainty', () => {
     const state = createService({
       start: async () => {
         attempts += 1
-        const session = { header: { seedLength: 1 } } as Agent['session']
+        const session = { firstLiveSeq: 1 } as unknown as Agent['session']
         activeSession = session
         projections.set(session, usage(0))
         const localAgent = { id: SessionId(`retry-usage-${attempts}`), session } as unknown as Agent
@@ -1273,7 +1273,7 @@ describe('v0.5 P1 compatibility and mutation certainty', () => {
   it('captures a final provider projection published only during run disposal', async () => {
     let listener: ((session: Agent['session'], key: string, value: unknown, seq: number) => void) | undefined
     let current = usage(0)
-    const childSession = { header: { seedLength: 1 } } as Agent['session']
+    const childSession = { firstLiveSeq: 1 } as unknown as Agent['session']
     const state = createService({
       start: async () => {
         const localAgent = { id: SessionId('late-usage-child'), session: childSession } as unknown as Agent
@@ -1319,7 +1319,7 @@ describe('v0.5 P1 compatibility and mutation certainty', () => {
       ...state.parent,
       session: {
         header: { cwd: '/workspace/project' },
-        events: [{
+        snapshotEvents: () => [{
           type: 'user/message', seq: 1, time: 1,
           data: { id: 'durable-human-message', content: [{ type: 'text', text: 'do it' }], source: { kind: 'user' } },
         }],
@@ -1353,12 +1353,12 @@ describe('v0.5 P1 compatibility and mutation certainty', () => {
         const qualityRepair = request.label === 'Delivery/Repairer' && repairs > 0
         if (qualityReview) {
           reviews += 1
-          activeAgent = { id: SessionId(`quality-review-${reviews}`), session: { header: { seedLength: 1 } } } as unknown as Agent
+          activeAgent = { id: SessionId(`quality-review-${reviews}`), session: { firstLiveSeq: 1 } } as unknown as Agent
           return { id: activeAgent.id, localAgent: activeAgent, result: reviews === 1 ? reviewOne.promise : reviewTwo.promise, async dispose() {} }
         }
         if (request.label === 'Delivery/Repairer') repairs += 1
         if (qualityRepair || repairs === 2) {
-          activeAgent = { id: SessionId('quality-repair'), session: { header: { seedLength: 1 } } } as unknown as Agent
+          activeAgent = { id: SessionId('quality-repair'), session: { firstLiveSeq: 1 } } as unknown as Agent
           return { id: activeAgent.id, localAgent: activeAgent, result: repair.promise, async dispose() {} }
         }
         return {
@@ -1673,7 +1673,7 @@ describe('v0.5 final Host safety gates', () => {
 
   it('attributes primary/fallback attempts and partial metering to their real routes', async () => {
     let attempt = 0
-    const fallbackSession = { header: {} } as Agent['session']
+    const fallbackSession = { header: {}, firstLiveSeq: 0 } as unknown as Agent['session']
     const state = createService({
       start: async () => {
         attempt += 1

@@ -1,8 +1,9 @@
 /** agent_team_gui 浏览器入口：Settings 小队页 + 输入区小队模式。 */
 
-import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
+import type { Context } from '@deepseek-ai/cordis'
 import type { ConnectionHandle } from '@deepseek-ai/dsh-client-connection/client'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
+import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import {
   AgentTeamController,
@@ -18,15 +19,16 @@ import { AGENT_TEAM_LOCALE_NS, DICTIONARIES, type LocaleService } from './i18n.t
 /** 浏览器侧依赖；模块加载器会在这些服务就绪后调用 apply。 */
 export const inject = ['slots', 'connection', 'locale']
 
-/** agent_team_gui 使用的独立 Connection RPC channel。 */
-export const RPC_CHANNEL = '/agent-team-gui'
+/** agent_team_gui 使用的认证 Connection RPC channel。 */
+export const RPC_CHANNEL = '/api'
+const RPC_METHOD = 'agentTeamGui'
 
 /** 将管理页和会话模式控件贡献到 dsh 的既有 additive slots。 */
-export function apply(ctx: ClientContext): void {
+export function apply(ctx: Context): void {
   const connection = ctx.get('connection') as ConnectionHandle
   const locale = ctx.get('locale') as LocaleService
   const call = async <T,>(endpoint: string, payload: unknown, signal?: AbortSignal): Promise<T> => {
-    const result = await connection.rpc.call(RPC_CHANNEL, endpoint, payload, signal)
+    const result = await connection.rpc.call(RPC_CHANNEL, RPC_METHOD, { endpoint, payload }, signal)
     if (!result.ok) {
       throw new Error(`${result.error.code}: ${result.error.message}`)
     }
@@ -39,10 +41,10 @@ export function apply(ctx: ClientContext): void {
   const controller = new AgentTeamController(call, locale)
 
   // A browser tab survives `dsh` restarts. Re-read the durable catalog when
-  // the Connection handshake returns; otherwise one early failed snapshot
-  // remains cached until the user happens to save a team in Settings.
+  // a new Connection generation becomes ready; otherwise one early failed
+  // snapshot remains cached until the user happens to save a team in Settings.
   ctx.effect(
-    () => refreshAgentTeamsOnReconnect(controller, connection.hostDescription),
+    () => refreshAgentTeamsOnReconnect(controller, connection.generation),
     'agent-team-gui: refresh durable teams after reconnect',
   )
 

@@ -44,7 +44,7 @@ This is a pragmatic layered Cordis plugin, not a requirement to hide every offic
 behind a separate port. Preserve small public interfaces, coherent definition snapshots, bounded
 external I/O, and testable pure policies rather than adding ceremonial abstractions.
 
-Keep public RPC payloads Zod-validated, loopback-only, backward compatible within the supported DSH
+Keep public RPC payloads Zod-validated, protected by the shared DSH browser authentication, backward compatible within the supported DSH
 range, and represented in both Host and Client contract tests. Do not append new Harness session
 event types or use private UI APIs as though they were supported extension points.
 

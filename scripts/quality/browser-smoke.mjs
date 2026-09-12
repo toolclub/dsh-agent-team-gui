@@ -6,6 +6,16 @@ import { chromium } from 'playwright'
 import { DshWebFixture } from './dsh-fixture.mjs'
 import { invariant, isExpectedRestartHostDescribe404 } from './common.mjs'
 
+function isAgentTeamRequest(request, endpoint) {
+  return request.method() === 'POST'
+    && new URL(request.url()).pathname === '/api/agentTeamGui'
+    && request.postDataJSON()?.payload?.endpoint === endpoint
+}
+
+function isAgentTeamResponse(response, endpoint) {
+  return isAgentTeamRequest(response.request(), endpoint)
+}
+
 async function assertNoSeriousAccessibilityViolations(page, selector, label) {
   const report = await new AxeBuilder({ page }).include(selector).analyze()
   const blocking = report.violations.filter(violation => violation.impact === 'serious' || violation.impact === 'critical')
@@ -178,19 +188,19 @@ try {
     }
   })
   const modeRequest = page.waitForRequest(
-    request => request.url().includes('/agent-team-gui/mode/get') && request.method() === 'POST',
+    request => isAgentTeamRequest(request, 'mode/get'),
     { timeout: 60_000 },
   )
   const snapshotResponse = page.waitForResponse(
-    response => response.url().includes('/agent-team-gui/snapshot') && response.request().method() === 'POST',
+    response => isAgentTeamResponse(response, 'snapshot'),
     { timeout: 60_000 },
   )
-  await page.goto(browserBaseUrl, { waitUntil: 'domcontentloaded' })
+  await page.goto(fixture.launchUrl, { waitUntil: 'domcontentloaded' })
   await completeOnboarding(page)
   const response = await snapshotResponse
   invariant(response.ok(), `browser snapshot request returned HTTP ${response.status()}`)
   const modeEnvelope = (await modeRequest).postDataJSON()
-  const sessionId = modeEnvelope?.payload?.sessionId
+  const sessionId = modeEnvelope?.payload?.payload?.sessionId
   invariant(typeof sessionId === 'string' && sessionId !== '', 'browser mode/get did not identify the active session')
   invariant(sessionId === createdSessionId, `browser selected ${sessionId} instead of the isolated session ${createdSessionId}`)
 
@@ -268,7 +278,7 @@ try {
     process.stdout.write(`Composer one-shot: ${previous} -> ${state} (visible/enabled)\n`)
     const [response] = await Promise.all([
       page.waitForResponse(candidate =>
-        candidate.url().includes('/agent-team-gui/mode/next-set') && candidate.request().method() === 'POST',
+        isAgentTeamResponse(candidate, 'mode/next-set'),
         { timeout: 15_000 },
       ),
       nextMessage.selectOption(state),
@@ -299,7 +309,7 @@ try {
   )
   const seededRunId = await fixture.seedOrphanedRun(seed, sessionId)
   const reconnectSnapshot = page.waitForResponse(candidate =>
-    candidate.url().includes('/agent-team-gui/snapshot') && candidate.request().method() === 'POST',
+    isAgentTeamResponse(candidate, 'snapshot'),
     { timeout: 30_000 },
   )
   const restartedBaseUrl = await fixture.start()
@@ -342,7 +352,7 @@ try {
   const modeBeforeProject = await fixture.rpc('mode/get', { sessionId })
   invariant(typeof modeBeforeProject.projectKey === 'string' && modeBeforeProject.projectKey !== '', 'browser session exposes no project key for project-default verification')
   const setProjectResponse = page.waitForResponse(candidate =>
-    candidate.url().includes('/agent-team-gui/project/default-set') && candidate.request().method() === 'POST',
+    isAgentTeamResponse(candidate, 'project/default-set'),
     { timeout: 15_000 },
   )
   const setProject = modePanel.getByRole('button', { name: /^(Set as this project’s default team|设为当前项目默认小队)$/ })
@@ -364,7 +374,7 @@ try {
   modePanel = await controlledPanel(page, composerTrigger, 'composer project-default trigger')
   await modePanel.waitFor({ state: 'visible', timeout: 5_000 })
   const clearProjectResponse = page.waitForResponse(candidate =>
-    candidate.url().includes('/agent-team-gui/project/default-set') && candidate.request().method() === 'POST',
+    isAgentTeamResponse(candidate, 'project/default-set'),
     { timeout: 15_000 },
   )
   const clearProject = modePanel.getByRole('button', { name: /^(Clear this project’s default team|取消当前项目默认小队)$/ })
@@ -452,13 +462,14 @@ try {
   await recipesRoot.waitFor({ state: 'visible', timeout: 10_000 })
   const importRequests = []
   const observeImportRequest = request => {
-    const pathname = new URL(request.url()).pathname
-    if ([
-      '/agent-team-gui/recipe/preview',
-      '/agent-team-gui/recipe/import',
-      '/agent-team-gui/import/preview',
-      '/agent-team-gui/import',
-    ].includes(pathname)) importRequests.push(pathname)
+    if (request.method() !== 'POST' || new URL(request.url()).pathname !== '/api/agentTeamGui') return
+    const endpoint = request.postDataJSON()?.payload?.endpoint
+    if (new URL(request.url()).pathname === '/api/agentTeamGui' && [
+      'recipe/preview',
+      'recipe/import',
+      'import/preview',
+      'import',
+    ].includes(endpoint)) importRequests.push(endpoint)
   }
   page.on('request', observeImportRequest)
   try {
@@ -513,7 +524,7 @@ try {
   const settledCancel = await fixture.rpc('run/cancel', { id: seededRunId })
   invariant(settledCancel.cancelled === false, 'run/cancel falsely reported cancelling an already interrupted run')
   const retryResponsePromise = page.waitForResponse(candidate =>
-    candidate.url().includes('/agent-team-gui/run/retry') && candidate.request().method() === 'POST',
+    isAgentTeamResponse(candidate, 'run/retry'),
     { timeout: 15_000 },
   )
   const retryButton = runCenter.locator(`[data-run-id="${seededRunId}"]`).getByRole('button', { name: /^(Retry full run|重试整次运行)$/ })
@@ -536,7 +547,7 @@ try {
       await stopButton.focus()
       const [cancelResponse] = await Promise.all([
         page.waitForResponse(candidate =>
-          candidate.url().includes('/agent-team-gui/run/cancel') && candidate.request().method() === 'POST',
+          isAgentTeamResponse(candidate, 'run/cancel'),
           { timeout: 15_000 },
         ),
         page.keyboard.press('Space'),
@@ -561,7 +572,7 @@ try {
   }
 
   const insightsResponsePromise = page.waitForResponse(candidate =>
-    candidate.url().includes('/agent-team-gui/insights/summary') && candidate.request().method() === 'POST',
+    isAgentTeamResponse(candidate, 'insights/summary'),
     { timeout: 15_000 },
   )
   const runsTab = runCenter.getByRole('tab', { name: /^(Team runs|小队运行)$/ })

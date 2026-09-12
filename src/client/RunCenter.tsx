@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react'
 import type { InjectFace, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
-import type {} from '@deepseek-ai/dsh-client-runtime/client'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
+import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import type { InsightsBucket, InsightsView, QualityMemberView, QualityResultView, RunMemberStatus, RunView, TokenUsageView } from './contracts.ts'
 import { EMPTY_USAGE } from './contracts.ts'
 import { AgentTeamController, errorText } from './controller.ts'

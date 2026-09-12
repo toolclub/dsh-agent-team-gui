@@ -39,14 +39,18 @@ Provider 上报的 Token 用量；下一次继续使用同一套小队配置。
 
 ## 安装
 
-需要已安装的 DeepSeek Harness `>=0.1.0-rc.5 <0.2.0`、**Web** profile、Node.js
-`>=22.19.0 <23` 或 `>=24.0.0`（不支持 Node.js 23）、pnpm，以及至少一条已经配置好的
-DSH provider/model 路由。仓库 CI 当前使用 DSH `0.1.1-rc.2`。
+从 DSH 0.1.1 升级时，请搭配 **插件 v1.1.0 + DSH 0.1.5**。新版修复了加载时的
+`source.subscribe` 报错，并适配连接恢复和 Session API；现有小队定义与运行记录继续保留。
+升级后重启 DSH 并刷新浏览器。CLI 可能显示 `0.1.5-rc.1`，内部兼容包实际解析为 `0.1.5-rc.2`。
 
-直接安装 **v1.0.1 预编译发布包**：
+需要已安装的 DeepSeek Harness `>=0.1.5-rc.1 <0.1.6-0`、**Web** profile、Node.js
+`>=22.19.0 <23` 或 `>=24.0.0`（不支持 Node.js 23）、pnpm，以及至少一条已经配置好的
+DSH provider/model 路由。仓库 CI 当前使用 DSH `0.1.5-rc.1`。
+
+直接安装 **v1.1.0 预编译发布包**：
 
 ```sh
-dsh plugin --profile web add -w https://github.com/toolclub/dsh-agent-team-gui/releases/download/v1.0.1/dsh-agent-team-gui-1.0.1.tgz
+dsh plugin --profile web add -w https://github.com/toolclub/dsh-agent-team-gui/releases/download/v1.1.0/dsh-agent-team-gui-1.1.0.tgz
 dsh --profile web
 ```
 
@@ -289,7 +293,7 @@ Web bundle 只插入一条唯一 Host row；它复用 Web profile 已有的 stor
 如果希望从已审查的源码构建，可以安装固定 tag：
 
 ```sh
-dsh plugin --profile web add -w github:toolclub/dsh-agent-team-gui#v1.0.1
+dsh plugin --profile web add -w github:toolclub/dsh-agent-team-gui#v1.1.0
 dsh --profile web
 ```
 
@@ -332,7 +336,7 @@ dsh plugin --profile web add -w .
 ```sh
 mkdir -p dist
 pnpm pack --pack-destination dist
-dsh plugin --profile web add -w ./dist/dsh-agent-team-gui-1.0.1.tgz
+dsh plugin --profile web add -w ./dist/dsh-agent-team-gui-1.1.0.tgz
 ```
 
 包检查会验证运行时和声明闭包、示例、治理文件、截图、source map、外部依赖声明、绝对路径、
@@ -342,7 +346,7 @@ dsh plugin --profile web add -w ./dist/dsh-agent-team-gui-1.0.1.tgz
 
 可以在 DeepSeek Harness 中直接发送这一句话：
 
-> 按照 https://github.com/toolclub/dsh-agent-team-gui 的安装说明，把 v1.0.1 预编译发布包
+> 按照 https://github.com/toolclub/dsh-agent-team-gui 的安装说明，把 v1.1.0 预编译发布包
 > 安装到 Web profile；重启 Web，验证组合配置，并汇报实际安装的插件和 DSH 版本。
 
 ## 模型工具和公开 Service
@@ -356,8 +360,8 @@ dsh plugin --profile web add -w ./dist/dsh-agent-team-gui-1.0.1.tgz
 
 ## 安全和隐私
 
-- 独立 RPC channel 只在 loopback 注册，并验证每个请求和响应；它不是把 DSH Web 公开到
-  Internet 时的认证层。
+- RPC 使用 `/api/agentTeamGui`，受 DSH 的浏览器会话 Cookie 认证及 Host/Origin 校验保护，
+  同时验证请求和响应；不再注册独立的未认证通道。
 - Provider 凭证不会被复制进插件记录、配方、示例、日志或导出。
 - 本地持久存储会包含小队角色提示词、所选路由名、对话/项目标识、用户任务、运行输出、错误和
   Token 用量。请保护 DSH home 目录。
@@ -371,7 +375,7 @@ dsh plugin --profile web add -w ./dist/dsh-agent-team-gui-1.0.1.tgz
 
 - 只提供 Web profile UI；没有 headless Settings。其他进程内插件仍可在提供必要 service 后使用
   导出的 Host service。
-- 声明兼容范围为 DSH `>=0.1.0-rc.5 <0.2.0`，当前 CI 使用 `0.1.1-rc.2`。DSH 和本插件都未
+- 声明兼容范围为 DSH `>=0.1.5-rc.1 <0.1.6-0`，当前 CI 使用 `0.1.5-rc.1`。DSH 和本插件都未
   稳定，请固定版本。
 - 旧 v0.4 持久定义和 v1 导出仍可读取/导入；编辑旧记录时必须满足 v0.5 更安全的新写入上限。
   没有保存原计划的旧运行无法忠实重试，会得到明确拒绝原因。
@@ -394,7 +398,7 @@ pnpm run smoke:install
 pnpm run smoke:browser
 ```
 
-CI 覆盖 Node 22.19 和 Node 24、全新 DSH `0.1.1-rc.2` Web profile、浏览器键盘/无障碍/重连路径、
+CI 覆盖 Node 22.19 和 Node 24、全新 DSH `0.1.5-rc.1` Web profile、浏览器键盘/无障碍/重连路径、
 准确 Git revision 安装以及社区插件 doctor。详细产品契约和证据矩阵见
 [docs/v0.5-product-spec.md](docs/v0.5-product-spec.md) 与
 [docs/v0.5-acceptance.md](docs/v0.5-acceptance.md)。
