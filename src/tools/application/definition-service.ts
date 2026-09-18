@@ -705,7 +705,7 @@ export class DefinitionApplicationService extends Service {
     if (squad === undefined) return ''
     const order = squad.executionOrder === undefined
       ? 'No fixed member order is configured. The host uses your model route to plan one role-specific assignment and a complete memberOrder for every configured member.'
-      : `Use this fixed serial member order: ${squad.executionOrder.join(' -> ')}.`
+      : `Use this fixed serial member order: ${squad.executionOrder.join(' -> ')}. Omit memberOrder entirely when calling dispatch_to_squad; it cannot override this fixed order.`
     const executionMode = squad.executionMode ?? (squad.executionOrder === undefined ? this.config.defaultExecutionMode : 'serial')
     const contextMode = squad.contextMode ?? this.config.defaultContextMode
     const guaranteed = (squad.triggerMode ?? 'guaranteed') === 'guaranteed'
@@ -725,7 +725,9 @@ export class DefinitionApplicationService extends Service {
       ] : [
         'For each new ordinary user request, call dispatch_to_squad exactly once before your final answer.',
         `Pass squadId exactly as "${mode.squadId}" and turn the current user request into a concrete shared task.`,
-        'When there is no fixed order, pass memberOrder as a complete, unique permutation of all member ids; use assignments for member-specific tasks.',
+        squad.executionOrder === undefined
+          ? 'When there is no fixed order, pass memberOrder as a complete, unique permutation of all member ids; use assignments for member-specific tasks.'
+          : 'Omit memberOrder entirely for this fixed-order squad. Use assignments only to narrow each member\'s task.',
         'After the tool result, produce a structured retrospective for the user: (1) squad execution summary, (2) what went well, (3) what did not go well and why, (4) knowledge gap analysis with root-cause classification, (5) concrete improvement recommendations for progressive disclosure or documentation, and (6) a final verdict on squad effectiveness. Do not call dispatch_to_squad again for the same user request after receiving its result.',
       ]),
       '</agent_team_squad_mode>',

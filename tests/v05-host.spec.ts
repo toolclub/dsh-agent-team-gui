@@ -1395,13 +1395,13 @@ describe('v0.5 P1 compatibility and mutation certainty', () => {
     await expect(running).resolves.toMatchObject({ status: 'completed', usage: { totalTokens: 12 } })
   })
 
-  it('hard-denies scoped default/renamed subagent and workflow tools using real compiled schemas', async () => {
+  it('limits deny entries to global names while recognizing scoped delegation schemas', async () => {
     let childFilter: unknown
-    let observedScope: unknown
+    const observedScopes: unknown[] = []
     const state = createService({
       toolSchemas: (scope) => {
-        observedScope = scope
-        if (scope === undefined) return [{ name: 'read_file', description: 'global read' }]
+        observedScopes.push(scope)
+        if (scope === undefined) return ['read_file', 'dispatch_to_squad', 'delegate', 'swarm_script'].map(name => ({ name, description: name }))
         return [
           { name: 'read_file', description: 'scoped read' },
           { name: 'dispatch_to_squad', description: 'Dispatch to a persistent squad.' },
@@ -1437,10 +1437,11 @@ describe('v0.5 P1 compatibility and mutation certainty', () => {
     })
     await state.squads.put(squadId, { name: 'Delivery', members: [researcherId] })
     await state.service.dispatch({ squadId, task: 'do not delegate' }, state.parent, new AbortController().signal)
-    expect(observedScope).toBe(state.parent)
+    expect(observedScopes).toContain(state.parent)
+    expect(observedScopes).toContain(undefined)
     expect(childFilter).toMatchObject({
       allow: ['read_file'],
-      deny: expect.arrayContaining(['optional_tool', 'dispatch_to_squad', 'subagent', 'workflow', 'delegate', 'swarm_script']),
+      deny: ['dispatch_to_squad', 'delegate', 'swarm_script'],
     })
 
     const handler = createAgentTeamRpcHandler(state.ctx, state.service)
@@ -1475,7 +1476,7 @@ describe('v0.5 P1 compatibility and mutation certainty', () => {
 
     await state.service.dispatch({ squadId, task: 'minimal preset' }, state.parent, new AbortController().signal)
 
-    expect(childFilter).toEqual({ allow: ['read_file'], deny: ['dispatch_to_squad'] })
+    expect(childFilter).toEqual({ allow: ['read_file'] })
   })
 })
 

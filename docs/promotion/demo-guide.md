@@ -6,6 +6,7 @@
 - [GIF 预览](https://github.com/toolclub/dsh-agent-team-gui/blob/main/assets/promotion-walkthrough-preview.gif)：29.5 秒，960×540，无声，循环播放。
 - [视频封面](https://github.com/toolclub/dsh-agent-team-gui/blob/main/assets/promotion-walkthrough-poster.png)：1920×1080 PNG。
 - [旁白字幕](https://github.com/toolclub/dsh-agent-team-gui/blob/main/docs/promotion/demo-captions.zh-CN.srt)：中文 SRT；视频本身另有简短的内嵌说明。
+- [English subtitles](https://github.com/toolclub/dsh-agent-team-gui/blob/main/docs/promotion/demo-captions.en.srt)：与已有导览相同的时间轴，可在播放器中手动加载；保留全部示例数据说明。
 
 所有内容画面持续显示 `界面演示 · 示例数据 / UI walkthrough · example data`。页脚进一步说明运行结果、耗时与用量为示例，未执行真实模型任务。Token 洞察一幕额外说明数字与完成率为示例。配方一幕明确停在冲突与模型路由预览，没有声称导入已成功。
 
