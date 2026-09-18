@@ -39,7 +39,16 @@ Provider 上报的 Token 用量；下一次继续使用同一套小队配置。
 
 ## 安装
 
-从 DSH 0.1.1 升级时，请搭配 **插件 v1.1.0 + DSH 0.1.5**。新版修复了加载时的
+| 插件版本 | DSH 版本 | 升级建议 |
+| --- | --- | --- |
+| **1.1.1** | `>=0.1.5-rc.1 <0.1.6-0` | 推荐版本，修复工具限制、审核预算、派单占用和交接 JSON |
+| 1.1.0 | `>=0.1.5-rc.1 <0.1.6-0` | 首个 0.1.5 适配版本，建议更新插件到 1.1.1 |
+| 1.0.1 | 已验证 `0.1.1-rc.2` | 旧版集成；需要同时升级 DSH 和插件 |
+
+已有导览提供[英文字幕](https://github.com/toolclub/dsh-agent-team-gui/blob/main/docs/promotion/demo-captions.en.srt)
+和[中文字幕](https://github.com/toolclub/dsh-agent-team-gui/blob/main/docs/promotion/demo-captions.zh-CN.srt)，可在支持字幕的播放器中手动加载 SRT；GitHub 不会自动叠加字幕。
+
+从 DSH 0.1.1 升级时，请搭配 **插件 v1.1.1 + DSH 0.1.5**。新版修复了加载时的
 `source.subscribe` 报错，并适配连接恢复和 Session API；现有小队定义与运行记录继续保留。
 升级后重启 DSH 并刷新浏览器。CLI 可能显示 `0.1.5-rc.1`，内部兼容包实际解析为 `0.1.5-rc.2`。
 
@@ -47,10 +56,10 @@ Provider 上报的 Token 用量；下一次继续使用同一套小队配置。
 `>=22.19.0 <23` 或 `>=24.0.0`（不支持 Node.js 23）、pnpm，以及至少一条已经配置好的
 DSH provider/model 路由。仓库 CI 当前使用 DSH `0.1.5-rc.1`。
 
-直接安装 **v1.1.0 预编译发布包**：
+直接安装 **v1.1.1 预编译发布包**：
 
 ```sh
-dsh plugin --profile web add -w https://github.com/toolclub/dsh-agent-team-gui/releases/download/v1.1.0/dsh-agent-team-gui-1.1.0.tgz
+dsh plugin --profile web add -w https://github.com/toolclub/dsh-agent-team-gui/releases/download/v1.1.1/dsh-agent-team-gui-1.1.1.tgz
 dsh --profile web
 ```
 
@@ -293,7 +302,7 @@ Web bundle 只插入一条唯一 Host row；它复用 Web profile 已有的 stor
 如果希望从已审查的源码构建，可以安装固定 tag：
 
 ```sh
-dsh plugin --profile web add -w github:toolclub/dsh-agent-team-gui#v1.1.0
+dsh plugin --profile web add -w github:toolclub/dsh-agent-team-gui#v1.1.1
 dsh --profile web
 ```
 
@@ -336,7 +345,7 @@ dsh plugin --profile web add -w .
 ```sh
 mkdir -p dist
 pnpm pack --pack-destination dist
-dsh plugin --profile web add -w ./dist/dsh-agent-team-gui-1.1.0.tgz
+dsh plugin --profile web add -w ./dist/dsh-agent-team-gui-1.1.1.tgz
 ```
 
 包检查会验证运行时和声明闭包、示例、治理文件、截图、source map、外部依赖声明、绝对路径、
@@ -346,7 +355,7 @@ dsh plugin --profile web add -w ./dist/dsh-agent-team-gui-1.1.0.tgz
 
 可以在 DeepSeek Harness 中直接发送这一句话：
 
-> 按照 https://github.com/toolclub/dsh-agent-team-gui 的安装说明，把 v1.1.0 预编译发布包
+> 按照 https://github.com/toolclub/dsh-agent-team-gui 的安装说明，把 v1.1.1 预编译发布包
 > 安装到 Web profile；重启 Web，验证组合配置，并汇报实际安装的插件和 DSH 版本。
 
 ## 模型工具和公开 Service
@@ -372,6 +381,19 @@ dsh plugin --profile web add -w ./dist/dsh-agent-team-gui-1.1.0.tgz
   提示词。
 
 ## 兼容范围和限制
+
+依赖交接与返工交接共享独立的 12,000 字符序列化 JSON 预算，质量审核链为 32,000 字符；
+它们与单成员存储摘要上限相互独立。交接会保留成员身份、分配内容空间，并用
+`chainTruncated` / `omittedHandoffs` 明示缩减或省略，完整输出仍保存在运行中心。
+审核阶段遵循审核成员设置的 `maxTokens`；只有未设置时才默认使用 2,048。
+
+`retry-once` 与运行中心重试会重放现有任务或计划，目前没有自动处理结构性失败的重新规划。
+需要修改任务说明时，请发送一条包含更明确分工的新用户消息；切换为 `model-tool` 也不会
+解除同一消息的派单次数限制。调用参数在受理前被校验拒绝时，不会占用本轮派单机会。
+
+DSH 0.1.5 下，deny 名称按全局工具注册表筛选，局部 allow 列表原样保留；被标记的进程内
+小队成员还有执行拦截，阻止已识别的委派工具及成员显式禁止的工具。DSH 尚无通用委派能力
+标签；任意自定义工具和外部程序不能据此视为具备操作系统级沙箱隔离。
 
 - 只提供 Web profile UI；没有 headless Settings。其他进程内插件仍可在提供必要 service 后使用
   导出的 Host service。

@@ -100,7 +100,7 @@ profile's `allowBuilds`; it never weakens a user's profile and rejects any other
 ## Complete preflight
 
 ```sh
-EXPECTED_VERSION=1.1.0 API_VERSION=5 pnpm run preflight
+EXPECTED_VERSION=1.1.1 API_VERSION=5 pnpm run preflight
 ```
 
 The preflight runs frozen installation, commit-range plus staged/unstaged whitespace validation,

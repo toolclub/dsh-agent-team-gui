@@ -33,7 +33,7 @@ export function createDispatchToSquadTool(service: AgentTeamService) {
       },
       memberOrder: {
         type: 'array',
-        description: 'When the squad has no fixed executionOrder, a complete unique permutation of every member id. Controls serial start order and parallel result order.',
+        description: 'Omit this field entirely when the squad has a fixed executionOrder. Otherwise, a complete unique permutation of every member id; controls serial start order and parallel result order.',
         items: { type: 'string' },
       },
       executionMode: {

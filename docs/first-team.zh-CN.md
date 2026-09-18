@@ -19,7 +19,7 @@ Node.js `>=22.19.0 <23` 或 `>=24.0.0`。Node.js 23 不在支持范围内。
 node --version
 pnpm --version
 dsh --version
-dsh plugin --profile web add -w https://github.com/toolclub/dsh-agent-team-gui/releases/download/v1.1.0/dsh-agent-team-gui-1.1.0.tgz
+dsh plugin --profile web add -w https://github.com/toolclub/dsh-agent-team-gui/releases/download/v1.1.1/dsh-agent-team-gui-1.1.1.tgz
 dsh --profile web
 ```
 
@@ -158,7 +158,7 @@ README 启动仅供本机访问的静态服务并检查页面，避免把 `file:
 | `dsh: command not found` | 克隆源码不会自动创建全局命令。在 Harness 仓库运行 `pnpm dsh --version`；本文的 `dsh ...` 可替换为 `pnpm --dir /absolute/path/to/deepseek-harness dsh ...` |
 | Node 版本不支持 | 使用 Node `>=22.19.0 <23` 或 `>=24.0.0`；不要使用 Node 23 |
 | 安装后看不到“小队”或提示前后端版本不一致 | 确认安装到 `web` profile，重启 DSH 进程并刷新浏览器；记录插件版本 `1.1.0` 和实际 DSH 版本 |
-| 发布包下载失败 | 从 [v1.1.0 Release](https://github.com/toolclub/dsh-agent-team-gui/releases/tag/v1.1.0) 下载 `.tgz`，然后运行 `dsh plugin --profile web add -w /absolute/path/to/dsh-agent-team-gui-1.1.0.tgz`；或使用下方固定 Git tag |
+| 发布包下载失败 | 从 [v1.1.1 Release](https://github.com/toolclub/dsh-agent-team-gui/releases/tag/v1.1.1) 下载 `.tgz`，然后运行 `dsh plugin --profile web add -w /absolute/path/to/dsh-agent-team-gui-1.1.1.tgz`；或使用下方固定 Git tag |
 | 预览一直显示缺少路由 | 先在 DSH 配置可用模型，再映射每个缺失路由；导入后到“成员库”核对具体模型 |
 | 确认导入不可用，或提示预览失效 | 完成所有映射，等待自动预览结束；定义在其他窗口变化后，重新点击“预览” |
 | 发消息没有运行小队 | 检查“始终使用小队”、正确的小队选择，以及“仅下一条消息”；首跑将触发策略改为“每次都运行”、成员选择改为“全部成员”并保存 |
@@ -177,7 +177,7 @@ dsh --profile web --dump-config
 需要从 Git 安装时，固定到同一个版本：
 
 ```sh
-dsh plugin --profile web add -w github:toolclub/dsh-agent-team-gui#v1.1.0
+dsh plugin --profile web add -w github:toolclub/dsh-agent-team-gui#v1.1.1
 ```
 
 Git 安装需要执行 `prepare` 构建。pnpm 10 或更高版本可能提示构建授权；在它提示的 Web

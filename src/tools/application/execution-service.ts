@@ -4,6 +4,8 @@ import type { ContentBlock, UserMessage } from '@deepseek-ai/dsh-llm'
 import type { SessionId } from '@deepseek-ai/dsh-session'
 import type { SubagentResult, SubagentRun } from '@deepseek-ai/dsh-subagent'
 import { deterministicExecutionPlan, executionWaves, normalizeHandoff, validateExecutionPlan } from '../orchestration.ts'
+import { boundedHandoffChain } from '../handoff-chain.ts'
+import { isDelegationTool } from '../delegation-policy.ts'
 import { DEFAULT_HANDOFF_SUMMARY_MAX_CHARS } from '../../limits.ts'
 import { runMeteringCoverage, RunHistoryStore } from '../run-history.ts'
 import { AgentTeamError } from '../domain/host.ts'
@@ -38,6 +40,8 @@ interface ResolvedMember {
 }
 
 export interface DispatchTrace {
+  /** Model-tool admission: claim only after caller input and definitions validate. */
+  readonly claimSourceMessage?: boolean
   readonly sessionId?: SessionId
   readonly sourceMessageId?: string
   readonly dispatchId?: DispatchId
@@ -152,7 +156,7 @@ export class ExecutionApplicationService extends DefinitionApplicationService {
       `Configured member role (authoritative):\n${this.boundedExcerpt(member.record.systemPrompt, 8_000)}`,
       'Return a concrete bounded handoff for the main Agent to synthesize.',
       ...(squad.collabNote ?? '').length === 0 ? [] : [`Squad collaboration note:\n${this.boundedExcerpt(squad.collabNote!, 8_000)}`],
-      ...chainText.length === 0 ? [] : [`Dependency handoffs (bounded):\n${this.boundedExcerpt(chainText, 12_000)}`],
+      ...chainText.length === 0 ? [] : [`Dependency handoffs (bounded JSON; full outputs in Run Center):\n${chainText}`],
       `Overall squad goal (context only; bounded excerpt):\n${this.boundedExcerpt(sharedTask, 24_000)}`,
     ]
     return parts.join('\n\n---\n\n')
@@ -208,14 +212,7 @@ export class ExecutionApplicationService extends DefinitionApplicationService {
         'INVALID_DISPATCH',
       )
     }
-    const claimed = await this.claimGuaranteedMessage(parent, sourceMessageId, 'team')
-    if (!claimed) {
-      throw new AgentTeamError(
-        'this user message has already dispatched a squad; reuse the existing result instead of starting another team',
-        'INVALID_DISPATCH',
-      )
-    }
-    return this.dispatch(request, parent, signal, { sessionId: parent.id, sourceMessageId })
+    return this.dispatch(request, parent, signal, { sessionId: parent.id, sourceMessageId, claimSourceMessage: true })
   }
 
   protected renderSquadContext(result: SquadDispatchResult): string {
@@ -246,7 +243,10 @@ export class ExecutionApplicationService extends DefinitionApplicationService {
       usage: result.usage,
     }
     return [
-      `The selected squad has already completed this user request. Do not dispatch it again.`,
+      `The selected squad attempt has settled with status "${result.status}". Do not dispatch it again for this user message.`,
+      ...(result.status === 'completed' ? [] : [
+        'Report the failed or incomplete assignments and their evidence. Propose a narrower follow-up user request if the brief needs changing; do not silently replace failed members by implementing their work yourself. Run Center retry replays the saved plan and does not replan.',
+      ]),
       `Bounded structured squad handoff (full raw output remains in Run Center):`,
       JSON.stringify(bounded),
       '',
@@ -438,6 +438,7 @@ export class ExecutionApplicationService extends DefinitionApplicationService {
     auxiliaryUsage?: 'repair',
   ): Promise<SquadMemberResult> {
     const prompt = this.promptFor(squad, member, sharedTask, chainText)
+    const childToolScope = this.childToolScope(member.record, provider, parent)
     const startedAt = Date.now()
     const selectedRoute = route ?? { provider: member.record.provider, model: member.record.model }
     if (persist) await this.updateRunMember(dispatchId, member.id, current => ({
@@ -454,7 +455,6 @@ export class ExecutionApplicationService extends DefinitionApplicationService {
       ? undefined
       : setTimeout(() => timeout.abort(new Error(`member timed out after ${squad.memberTimeoutMs}ms`)), squad.memberTimeoutMs)
     const memberSignal = squad.memberTimeoutMs === undefined ? signal : AbortSignal.any([signal, timeout.signal])
-    const childToolScope = this.childToolScope(member.record, provider, parent)
     const capabilities = (this.ctx.subagents as unknown as {
       getProvider?(name: string): { readonly capabilities: { readonly outputSchema: boolean; readonly depthLimit: boolean } } | undefined
     }).getProvider?.(provider)?.capabilities
@@ -476,6 +476,8 @@ export class ExecutionApplicationService extends DefinitionApplicationService {
         parent,
         signal: memberSignal,
         agentOptions: {
+          agentTeamGuiChild: true,
+          ...(member.record.toolScope?.deny === undefined ? {} : { agentTeamGuiDeniedTools: [...member.record.toolScope.deny] }),
           provider: selectedRoute.provider,
           model: selectedRoute.model,
           ...member.record.maxTokens === undefined ? {} : { maxTokens: member.record.maxTokens },
@@ -587,57 +589,21 @@ export class ExecutionApplicationService extends DefinitionApplicationService {
     if (capabilities === undefined || capabilities.toolFilter === false || capabilities.depthLimit === false) {
       throw new AgentTeamError(`subagent provider "${provider}" cannot enforce the recursive-tool deny list and depth limit`, 'INVALID_DISPATCH')
     }
-    // Preset tools are layered at the parent Agent scope. Reading the global
-    // catalog here misses the Web preset's subagent tool, which the spawned
-    // child otherwise inherits through composeFrom(parent).
     const schemas = this.ctx.tools.schemas(parent)
+    const globalSchemas = this.ctx.tools.schemas()
+    const restrictable = new Set(globalSchemas.map(tool => tool.name).filter(name => name !== 'run_code'))
     const known = new Set(schemas.map(tool => tool.name))
     const unknownAllowed = (record.toolScope?.allow ?? []).filter(name => !known.has(name))
     if (unknownAllowed.length > 0) {
       throw new AgentTeamError(`member tool allow-list is unavailable in this session: ${unknownAllowed.join(', ')}`, 'INVALID_DISPATCH')
     }
-    const recursiveTools = new Set<string>()
-    for (const name of ['dispatch_to_squad', 'subagent', 'workflow']) {
-      // ToolRuntime.restrict rejects unknown names. Only deny fixed delegation
-      // tools that are actually visible in the effective parent scope; renamed
-      // official tools are discovered by their compiled schema below.
-      if (known.has(name)) recursiveTools.add(name)
-    }
-    // A saved deny-list may refer to a tool from another preset. The Harness
-    // restrictor rejects unknown names, so retain only entries visible in this
-    // parent scope. Unknown allow entries remain a hard error above.
-    const deny = new Set((record.toolScope?.deny ?? []).filter(name => known.has(name)))
-    for (const name of recursiveTools) {
-      deny.add(name)
-    }
-    // ToolRuntime exposes compiled JSON Schema, not the author-facing property
-    // map. Recognize the stable official shapes inside the effective parent
-    // scope so renamed delegation/workflow tools cannot bypass the deny list.
-    for (const schema of schemas) {
-      const parameters = schema.parameters as {
-        readonly properties?: Record<string, { readonly type?: string; readonly required?: boolean }>
-        readonly required?: unknown
-      } | undefined
-      if (parameters === undefined) continue
-      const properties = parameters.properties
-      if (properties === undefined) continue
-      const required = new Set(Array.isArray(parameters.required)
-        ? parameters.required.filter((value): value is string => typeof value === 'string')
-        : [])
-      const keys = Object.keys(properties)
-      const officialShape = properties['description']?.type === 'string' && required.has('description')
-        && properties['prompt']?.type === 'string' && required.has('prompt')
-        && keys.every(key => key === 'description' || key === 'prompt' || key === 'run_in_background')
-        && (properties['run_in_background'] === undefined || properties['run_in_background'].type === 'boolean')
-      if (officialShape) deny.add(schema.name)
-      const workflowShape = properties['script']?.type === 'string' && required.has('script')
-        && properties['meta']?.type === 'object' && required.has('meta')
-        && keys.every(key => key === 'script' || key === 'meta' || key === 'args')
-        && (properties['args'] === undefined || properties['args'].type === 'object')
-      if (workflowShape) deny.add(schema.name)
-    }
+    const recursiveTools = new Set([...globalSchemas, ...schemas].filter(isDelegationTool).map(tool => tool.name))
+    // DSH validates deny entries against its global registry. A parent's
+    // scope-local alias is not necessarily restrictable by a child. Preserve
+    // scoped allows, and enforce recursive aliases with the execution guard.
+    const deny = new Set([...record.toolScope?.deny ?? [], ...recursiveTools].filter(name => restrictable.has(name)))
     const allow = record.toolScope?.allow
-    const recursiveAllowed = allow?.filter(name => deny.has(name)) ?? []
+    const recursiveAllowed = allow?.filter(name => recursiveTools.has(name) || deny.has(name)) ?? []
     if (recursiveAllowed.length > 0) {
       throw new AgentTeamError(`member tool allow-list cannot expose recursive delegation tools: ${recursiveAllowed.join(', ')}`, 'INVALID_DISPATCH')
     }
@@ -699,6 +665,7 @@ export class ExecutionApplicationService extends DefinitionApplicationService {
     const plannerProvider = useMainAgent ? parent.options.provider : leader?.provider
     const plannerModel = useMainAgent ? parent.options.model : leader?.model
     const plannerAgentOptions = {
+      agentTeamGuiChild: true,
       ...(plannerProvider === undefined ? {} : { provider: plannerProvider }),
       ...(plannerModel === undefined ? {} : { model: plannerModel }),
       maxTokens: squad.plannerMaxTokens ?? 2_048,
@@ -904,14 +871,15 @@ export class ExecutionApplicationService extends DefinitionApplicationService {
         prompt: [{ type: 'text', text: [
           'Review contract: return only a bounded verdict. Do not repair, call tools, dispatch teams, or create subagents.',
           `Quality criteria:\n${squad.qualityGate?.criteria?.trim() || 'Correct, complete, internally consistent, and supported by the reported deliverables.'}`,
-          `Bounded handoffs:\n${this.boundedExcerpt(JSON.stringify(memberResults.map(item => ({ agentId: item.agentId, status: item.status, handoff: item.handoff, error: item.error }))), 32_000)}`,
+          `Bounded handoffs:\n${boundedHandoffChain(memberResults, 32_000)}`,
           'Return approved=true only if no repair is required. Feedback must be concrete and bounded. Do not do the repair, call tools, dispatch teams, or create subagents.',
           `Original goal (bounded head/tail excerpt):\n${this.boundedExcerpt(sharedTask, 24_000)}`,
         ].join('\n\n') }],
         agentOptions: {
           provider: reviewer.record.provider,
+          agentTeamGuiChild: true,
           model: reviewer.record.model,
-          maxTokens: Math.min(reviewer.record.maxTokens ?? 2_048, 2_048),
+          maxTokens: reviewer.record.maxTokens ?? 2_048,
         },
         outputSchema: {
           type: 'object', additionalProperties: false,
@@ -1035,7 +1003,7 @@ export class ExecutionApplicationService extends DefinitionApplicationService {
         squad,
         { ...repair, task: repairTask },
         sharedTask,
-        JSON.stringify(current.map(item => item.handoff)).slice(0, 12_000),
+        boundedHandoffChain(current),
         parent,
         signal,
         dispatchId,
@@ -1097,9 +1065,7 @@ export class ExecutionApplicationService extends DefinitionApplicationService {
       throw new AgentTeamError('contextMode "chain" requires serial execution', 'INVALID_DISPATCH')
     }
     // Reject malformed caller overrides before creating a durable run record.
-    if (request.assignments !== undefined || request.memberOrder !== undefined) {
-      this.resolveMembers(squad, request.assignments, request.memberOrder, agents)
-    }
+    this.resolveMembers(squad, request.assignments, request.memberOrder, agents)
     if (trace.selectedAgentIds !== undefined && trace.selectedAgentIds.some(id => !squad.members.includes(id))) {
       throw new AgentTeamError('retry selection contains a non-member agent', 'INVALID_DISPATCH')
     }
@@ -1113,6 +1079,20 @@ export class ExecutionApplicationService extends DefinitionApplicationService {
       throw new AgentTeamError('an identical squad task is already active for this session', 'INVALID_DISPATCH')
     }
     this.activeDispatchKeys.add(activeKey)
+    try {
+      throwIfAborted(signal)
+      if (trace.claimSourceMessage) {
+        if (trace.sourceMessageId === undefined) throw new AgentTeamError('model-tool dispatch requires a source message', 'INVALID_DISPATCH')
+        const claimed = await this.claimGuaranteedMessage(parent, trace.sourceMessageId, 'team')
+        if (!claimed) throw new AgentTeamError(
+          'this user message has already dispatched a squad; reuse the existing result instead of starting another team',
+          'INVALID_DISPATCH',
+        )
+      }
+    } catch (error) {
+      this.activeDispatchKeys.delete(activeKey)
+      throw error
+    }
     const dispatchId = trace.dispatchId ?? DispatchId(randomUUID())
     const startedAt = Date.now()
     const controller = new AbortController()
@@ -1261,8 +1241,11 @@ export class ExecutionApplicationService extends DefinitionApplicationService {
           }
           const settled = await Promise.all(runnable.map(async (node) => {
             const member = memberById.get(node.agentId)!
-            const dependencyHandoffs = node.dependsOn.map(id => resultById.get(id)?.handoff).filter(Boolean)
-            const chainText = JSON.stringify(dependencyHandoffs).slice(0, 12_000)
+            const dependencyHandoffs = node.dependsOn.flatMap(id => {
+              const delivery = resultById.get(id)
+              return delivery === undefined ? [] : [delivery]
+            })
+            const chainText = boundedHandoffChain(dependencyHandoffs)
             return this.runMemberWithPolicy(provider, squad, member, request.task, chainText, parent, runSignal, dispatchId)
           }))
           for (const result of settled) {

@@ -1,0 +1,39 @@
+1
+00:00:00,000 --> 00:00:10,000
+This is the multi-agent team plugin for DeepSeek Harness.
+These are real interface screenshots with example data.
+
+2
+00:00:10,000 --> 00:00:20,000
+Save a reusable team with three roles:
+product planning, implementation, and quality review.
+
+3
+00:00:20,000 --> 00:00:31,000
+Choose a team beside the composer. Use Team, Solo,
+or the project default, with an optional one-message override.
+
+4
+00:00:31,000 --> 00:00:42,000
+Run Center shows the execution plan, dependencies, and member states.
+This example proceeds through planning, implementation, and review.
+
+5
+00:00:42,000 --> 00:00:52,000
+Review and repair records show the rounds and their owners.
+The two rounds shown here are preset example data.
+
+6
+00:00:52,000 --> 00:01:02,000
+Token Insights separates planning, member execution, review, and repair.
+The displayed figures illustrate the interface, not measured performance.
+
+7
+00:01:02,000 --> 00:01:12,000
+Recipes make team configurations reusable. Before importing,
+preview conflicts and map missing model routes.
+
+8
+00:01:12,000 --> 00:01:20,000
+Find the source and installation instructions on GitHub.
+If this is useful, consider giving the project a Star.

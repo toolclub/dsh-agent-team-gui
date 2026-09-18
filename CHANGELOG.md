@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.1.1 — 2026-09-17
+
+- Fix #66: filter member deny names through the global registry, preserve scoped allows,
+  recognize expanded delegation signatures, and guard marked in-process children at tool execution.
+  Explicit member denies also remain enforced for scope-local tools.
+- Fix #67: use the reviewer's configured output-token limit in quality-gate rounds, retaining
+  2,048 as the default only when no limit is configured.
+- Fix #68: validate dispatch inputs and definitions before the model-tool message claim;
+  fixed-order guidance explicitly tells the model to omit `memberOrder`. Admitted runs retain
+  their idempotency receipts even when execution fails.
+- Fix #69: budget dependency, review, and repair chains as complete serialized JSON, preserving
+  member attribution, sharing space across handoffs, and explicitly reporting truncation/omission.
+- Improve #70's failed-run guidance: accurately report settled status and suggest a narrower
+  follow-up instead of silently replacing failed workers. Automatic replanning remains deferred.
+- Address #71 with a plugin/DSH compatibility table and English SRT captions for the existing
+  screenshot walkthrough. No video was regenerated.
+
+Thanks to @Edvin-Kjall for the detailed workflow reports and @aixwork for the documentation feedback.
+
 ## 1.1.0 — 2026-09-12
 
 - Support the DSH 0.1.5 API generation and restrict declared compatibility to
