@@ -232,6 +232,7 @@ export class ExecutionApplicationService extends DefinitionApplicationService {
   private continuationAvailability(run: SquadRunRecord): ContinuationAvailability {
     const base = { sourceRunId: run.id, expectedRevision: run.chain?.revision ?? 0 }
     const reject = (reason: string) => ({ ...base, allowed: false, reason })
+    if (run.sourceMessageId === undefined) return reject('No durable user message is linked to this run; use an explicit user replay.')
     if (run.chain === undefined || run.definitionSnapshot === undefined || run.plan?.decision !== 'run') return reject('This run has no resumable execution-chain snapshot.')
     if (run.status !== 'failed' && run.status !== 'partial') return reject('Only settled failed or partial runs may continue; cancellation and interruption require user review.')
     if (run.chain.revision >= run.chain.maxContinuations) return reject('Execution-chain continuation limit reached.')

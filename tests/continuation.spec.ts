@@ -199,4 +199,12 @@ describe('execution-chain continuation (#70)', () => {
     expect(tool.name).toBe('continue_squad_run')
     expect(tool.isConcurrencySafe?.({} as never)).toBe(false)
   })
+
+  it('does not advertise model continuation for a manual run without a human-message identity', async () => {
+    const state = createService({ start: async () => { throw new Error('unavailable') } })
+    await state.agents.put(researcherId, agent('Researcher'))
+    await state.squads.put(squadId, { name: 'Manual', members: [researcherId], executionOrder: [researcherId] })
+    const result = await state.service.dispatch({ squadId, task: 'manual task' }, state.parent, signal())
+    expect(result.continuation).toMatchObject({ allowed: false, reason: expect.stringContaining('No durable user message') })
+  })
 })
