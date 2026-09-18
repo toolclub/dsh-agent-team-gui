@@ -64,6 +64,8 @@ export function createDispatchToSquadTool(service: AgentTeamService) {
           usage: { type: 'json', required: true },
           plan: { type: 'json' },
           quality: { type: 'json' },
+          chain: { type: 'json' },
+          continuation: { type: 'json' },
           members: {
             type: 'array',
             required: true,
@@ -86,6 +88,9 @@ export function createDispatchToSquadTool(service: AgentTeamService) {
                 endedAt: { type: 'number' },
                 usage: { type: 'json' },
                 handoff: { type: 'json' },
+                recovery: { type: 'json' },
+                executionEvidence: { type: 'string' },
+                reusedFrom: { type: 'string' },
               },
             },
           },
@@ -106,6 +111,8 @@ export function createDispatchToSquadTool(service: AgentTeamService) {
           startedAt: value.startedAt,
           endedAt: value.endedAt,
           usage: value.usage,
+          chain: value.chain,
+          continuation: value.continuation,
           plan: value.plan === undefined ? undefined : (() => {
             const plan = value.plan as Record<string, unknown>
             const assignments = Array.isArray(plan['assignments']) ? plan['assignments'] : []
@@ -130,6 +137,11 @@ export function createDispatchToSquadTool(service: AgentTeamService) {
             attempts: member.attempts,
             usage: member.usage,
             error: member.error?.slice(0, 2_000),
+            reusedFrom: member.reusedFrom,
+            recovery: member.recovery === undefined ? undefined : (() => {
+              const recovery = member.recovery as Record<string, unknown>
+              return { state: recovery['state'], decision: recovery['decision'], error: recovery['error'] }
+            })(),
             handoff: member.handoff === undefined ? { summary: 'Full output is available in Run Center.' } : (() => {
               const handoff = member.handoff as Record<string, unknown>
               const strings = (input: unknown, count: number, width: number) => Array.isArray(input)
@@ -171,7 +183,7 @@ export function createDispatchToSquadTool(service: AgentTeamService) {
               }),
             }
           })(),
-          note: 'Full member outputs are persisted in Run Center and intentionally omitted here. After receiving this result, produce a structured retrospective: (1) what the squad accomplished, (2) what went well and what did not, (3) knowledge gap analysis — was missing context about the codebase or missing user-supplied domain knowledge the root cause of any underperformance, (4) concrete improvement suggestions for progressive disclosure or documentation, and (5) a final retrospective summary with a verdict on squad effectiveness.',
+          note: 'Full member outputs are persisted in Run Center and intentionally omitted here. Do not dispatch_to_squad again for this user message. If continuation.allowed is true, inspect the failure diagnosis and progress, then use continue_squad_run with sourceRunId, expectedRevision, reason, progressReview and revised assignments. Keep the original goal; do not silently take over failed workers. Otherwise report blockers or ask the user. After execution, produce a structured retrospective with knowledge gap analysis and concrete improvements.',
         }
         return [{ type: 'text', text: JSON.stringify(bounded, null, 2) }]
       },
@@ -193,17 +205,20 @@ export function createDispatchToSquadTool(service: AgentTeamService) {
         ...args.executionMode === undefined ? {} : { executionMode: args.executionMode },
         ...args.contextMode === undefined ? {} : { contextMode: args.contextMode },
       }, exec.agent, exec.signal)
-      const { usage, plan, quality, members, ...rest } = result
+      const { usage, plan, quality, chain, continuation, members, ...rest } = result
       return {
         ...rest,
         usage: usage as unknown as JsonValue,
         ...plan === undefined ? {} : { plan: plan as unknown as JsonValue },
         ...quality === undefined ? {} : { quality: quality as unknown as JsonValue },
-        members: members.map(({ usage: memberUsage, handoff, output, ...member }) => ({
+        ...chain === undefined ? {} : { chain: chain as unknown as JsonValue },
+        ...continuation === undefined ? {} : { continuation: continuation as unknown as JsonValue },
+        members: members.map(({ usage: memberUsage, handoff, recovery, output, ...member }) => ({
           ...member,
           output: output as unknown as JsonValue[],
           ...memberUsage === undefined ? {} : { usage: memberUsage as unknown as JsonValue },
           ...handoff === undefined ? {} : { handoff: handoff as unknown as JsonValue },
+          ...recovery === undefined ? {} : { recovery: recovery as unknown as JsonValue },
         })),
       }
     },

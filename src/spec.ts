@@ -1,7 +1,8 @@
 import { z } from 'zod'
+import { retryDecisionSchema } from './tools/retry-diagnosis.ts'
 import { defineDomain, domainTable } from '@deepseek-ai/dsh-storage-domain'
 import type { SessionId } from '@deepseek-ai/dsh-session'
-import type { AgentExportItem, AgentId, AgentRecord, AgentTeamExportDocument, AgentTeamRecipeDocument, DispatchId, ProjectSquadDefaultRecord, SessionNextSquadModeRecord, SessionSquadModeRecord, SquadExportItem, SquadId, SquadMessageClaimRecord, SquadRecord, SquadRunRecord, SquadVersionRecord } from './types.ts'
+import { AgentId, DispatchId, type AgentExportItem, type AgentRecord, type AgentTeamExportDocument, type AgentTeamRecipeDocument, type ProjectSquadDefaultRecord, type SessionNextSquadModeRecord, type SessionSquadModeRecord, type SquadExportItem, type SquadId, type SquadMessageClaimRecord, type SquadRecord, type SquadRunRecord, type SquadVersionRecord } from './types.ts'
 import { MAX_HANDOFF_SUMMARY_MAX_CHARS, MIN_HANDOFF_SUMMARY_MAX_CHARS } from './limits.ts'
 
 /**
@@ -218,7 +219,7 @@ const planSchema = z.object({
   summary: z.string(),
   memberOrder: z.array(z.string().min(1).transform(value => value as AgentId)),
   assignments: z.array(assignmentSchema),
-  planner: z.enum(['main-agent', 'squad-leader', 'deterministic-fallback']).default('squad-leader'),
+  planner: z.enum(['main-agent', 'squad-leader', 'deterministic-fallback', 'lead-continuation']).default('squad-leader'),
   plannerProvider: z.string().min(1).optional(),
   plannerModel: z.string().min(1).optional(),
   leaderAgentId: z.string().min(1).transform(value => value as AgentId).optional(),
@@ -226,7 +227,23 @@ const planSchema = z.object({
   warning: z.string().optional(),
 }).strict()
 
+const recoverySchema = z.object({
+  state: z.enum(['diagnosing', 'completed', 'failed', 'skipped']),
+  attempted: z.boolean(), provider: z.string(), model: z.string(),
+  startedAt: z.number().int().nonnegative(), endedAt: z.number().int().nonnegative().optional(),
+  runId: z.string().optional(), childId: z.string().optional(),
+  usage: usageSchema.optional(), error: z.string().optional(), decision: retryDecisionSchema.optional(),
+  originalTask: z.string(), retryTask: z.string().optional(),
+  firstAttempt: z.object({
+    status: z.enum(['completed', 'failed', 'cancelled', 'timed-out']),
+    error: z.string().optional(), output: z.array(z.unknown()),
+    runId: z.string().optional(), childId: z.string().optional(), executionEvidence: z.string().optional(),
+  }).strict(),
+}).strict()
+
 const runMemberSchema = z.object({
+  reusedFrom: z.string().min(1).transform(DispatchId).optional(),
+  recovery: recoverySchema.optional(),
   agentId: z.string().min(1).transform(value => value as AgentId),
   agentName: z.string(),
   provider: z.string(),
@@ -260,6 +277,9 @@ const runMemberSchema = z.object({
 }).strict()
 
 const memberResultSchema = z.object({
+  reusedFrom: z.string().min(1).transform(DispatchId).optional(),
+  recovery: recoverySchema.optional(),
+  executionEvidence: z.string().optional(),
   agentId: z.string().min(1).transform(value => value as AgentId),
   agentName: z.string(),
   status: z.enum(['completed', 'failed', 'cancelled', 'timed-out']),
@@ -292,6 +312,13 @@ const qualitySchema = z.object({
 
 /** Durable run-center row; output blocks remain provider-neutral JSON. */
 export const squadRunRecordSchema = z.object({
+  chain: z.object({
+    id: z.string().min(1).transform(DispatchId), revision: z.number().int().nonnegative(), maxContinuations: z.number().int().nonnegative(),
+    usageBeforeRun: usageSchema, tokenBudget: z.number().positive().optional(),
+    continuationOf: z.string().min(1).transform(DispatchId).optional(), reason: z.string().optional(), progressReview: z.string().optional(),
+  }).strict().optional(),
+  continuationReceipt: z.object({ requestKey: z.string(), runId: z.string().min(1).transform(DispatchId) }).strict().optional(),
+  definitionSnapshot: z.object({ squad: squadReadFields, agents: z.array(z.object({ id: z.string().min(1).transform(AgentId), record: agentReadFields }).strict()) }).strict().optional(),
   id: z.string().min(1).transform(value => value as DispatchId),
   sessionId: z.string().min(1).transform(value => value as SessionId),
   sourceMessageId: z.string().optional(),

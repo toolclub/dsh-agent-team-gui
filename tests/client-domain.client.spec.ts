@@ -6,7 +6,7 @@ import { completionRate, planStages } from '../src/client/view-models.ts'
 import { CLIENT_STYLES } from '../src/client/styles.ts'
 
 const VALID_SNAPSHOT = {
-  apiVersion: 5,
+  apiVersion: 6,
   agents: [], squads: [], models: [], tools: [],
   capabilities: { smartActivation: true, dags: true, qualityGate: true, backgroundRuns: true, recipes: true, remoteRecipeFetch: false, insights: true, reproducibleVersions: true },
   defaults: { executionMode: 'serial', fixedOrderExecutionMode: 'serial', contextMode: 'fork', planningContext: 'full', plannerMaxTokens: 2_048 },
@@ -178,9 +178,9 @@ describe('client domain validation and view models', () => {
     expect(isTeamSnapshot(VALID_SNAPSHOT)).toBe(true)
     expect(isTeamSnapshot({ ...VALID_SNAPSHOT, capabilities: undefined })).toBe(false)
     expect(isTeamSnapshot({ ...VALID_SNAPSHOT, defaults: { ...VALID_SNAPSHOT.defaults, plannerMaxTokens: 0 } })).toBe(false)
-    expect(isTeamSnapshot({ apiVersion: 5, agents: [{ id: 'a' }], squads: [], models: [], tools: [] })).toBe(false)
-    expect(isTeamSnapshot({ apiVersion: 5, agents: [], squads: [{ id: 't', name: 'T', collabNote: '', members: [42] }], models: [], tools: [] })).toBe(false)
-    const controller = new AgentTeamController(async <T,>() => ({ apiVersion: 5, agents: [{ id: 'a' }], squads: [], models: [], tools: [] }) as T)
+    expect(isTeamSnapshot({ apiVersion: 6, agents: [{ id: 'a' }], squads: [], models: [], tools: [] })).toBe(false)
+    expect(isTeamSnapshot({ apiVersion: 6, agents: [], squads: [{ id: 't', name: 'T', collabNote: '', members: [42] }], models: [], tools: [] })).toBe(false)
+    const controller = new AgentTeamController(async <T,>() => ({ apiVersion: 6, agents: [{ id: 'a' }], squads: [], models: [], tools: [] }) as T)
     await expect(controller.load()).rejects.toThrow('DeepSeek Harness')
     expect(controller.getSnapshot().status).toBe('error')
   })

@@ -6,6 +6,7 @@ import type {} from '@deepseek-ai/dsh-jobs'
 import { agentTeamDomainSpec } from './spec.ts'
 import { registerAgentTeamRpc } from './rpc.ts'
 import { createDispatchToSquadTool } from './tools/dispatch-to-squad.ts'
+import { createContinueSquadRunTool } from './tools/continue-squad-run.ts'
 import { teamChildToolGuard } from './tools/delegation-policy.ts'
 import { ExecutionApplicationService } from './tools/application/execution-service.ts'
 import type { AgentTeamConfig } from './tools/domain/host.ts'
@@ -69,6 +70,7 @@ export class AgentTeamService extends ExecutionApplicationService {
     }
 
     this.ctx.tools.register(createDispatchToSquadTool(this))
+    this.ctx.tools.register(createContinueSquadRunTool(this))
     this.ctx.tools.guard(teamChildToolGuard(this.ctx.tools))
     const systemPrompt = this.ctx.get('systemPrompt') as SystemPromptService
     systemPrompt.section({

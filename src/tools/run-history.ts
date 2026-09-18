@@ -31,10 +31,11 @@ export function runMeteringCoverage(run: SquadRunRecord): 'full' | 'partial' | '
   const expected: Array<AgentTokenUsage | undefined> = []
   const plannerAttempted = run.phase === 'planning'
     || run.liveUsage?.planner !== undefined
-    || (run.plan !== undefined && (run.plan.planner !== 'deterministic-fallback'
+    || (run.plan !== undefined && run.plan.planner !== 'lead-continuation' && (run.plan.planner !== 'deterministic-fallback'
       || run.plan.plannerProvider !== undefined || run.plan.plannerModel !== undefined))
   if (plannerAttempted) expected.push(run.plan?.usage ?? run.liveUsage?.planner)
   for (const member of run.members) {
+    if (member.recovery?.attempted) expected.push(member.recovery.usage)
     if (member.attemptUsage !== undefined && member.attemptUsage.length > 0) {
       for (const attempt of member.attemptUsage) expected.push(attempt.usage)
     } else if (member.usageSamples !== undefined) {
@@ -130,9 +131,11 @@ export class RunHistoryStore {
         phase: 'settled',
         endedAt: now,
         error: 'DSH stopped or restarted before this run completed.',
-        members: current.members.map(member => member.status === 'pending' || member.status === 'running'
-          ? { ...member, status: 'interrupted', endedAt: now, error: 'Host restarted before this member completed.' }
-          : member),
+        members: current.members.map(member => ({
+          ...member,
+          ...(member.status === 'pending' || member.status === 'running' ? { status: 'interrupted' as const, endedAt: now, error: 'Host restarted before this member completed.' } : {}),
+          ...(member.recovery?.state === 'diagnosing' ? { recovery: { ...member.recovery, state: 'failed' as const, endedAt: now, error: 'Host restarted during diagnosis. No automatic continuation.' } } : {}),
+        })),
       }))
     }
     return changed
@@ -203,13 +206,18 @@ export class RunHistoryStore {
       addBucket(squad, run.squadId, run.squadName, run.id, run.usage)
       const projectKey = run.projectKey ?? '(no project)'
       addBucket(project, projectKey, projectKey, run.id, run.usage)
-      if (run.plan !== undefined) {
+      if (run.plan !== undefined && run.plan.planner !== 'lead-continuation') {
         const plannerModel = run.plan.plannerProvider !== undefined && run.plan.plannerModel !== undefined
           ? `${run.plan.plannerProvider}/${run.plan.plannerModel}`
           : '(planner route unknown)'
         addBucket(model, plannerModel, plannerModel, run.id, run.plan.usage)
       }
       for (const member of run.members) {
+        if (member.recovery?.attempted) {
+          addBucket(agent, '(system-recovery)', 'System recovery coordinator', run.id, member.recovery.usage)
+          const recoveryModel = `${member.recovery.provider}/${member.recovery.model}`
+          addBucket(model, recoveryModel, recoveryModel, run.id, member.recovery.usage)
+        }
         if (member.attemptUsage !== undefined && member.attemptUsage.length > 0) {
           for (const attempt of member.attemptUsage) {
             addBucket(agent, member.agentId, member.agentName, run.id, attempt.usage)

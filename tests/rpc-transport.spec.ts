@@ -18,7 +18,7 @@ describe('authenticated Connection route adapter', () => {
     expect(response.status).toBe(200)
     expect(await response.json()).toMatchObject({
       type: 'server-response', rpcId: 'transport-1',
-      result: { ok: true, value: { apiVersion: 5, agents: [], squads: [] } },
+      result: { ok: true, value: { apiVersion: 6, agents: [], squads: [] } },
     })
   })
 

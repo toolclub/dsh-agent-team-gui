@@ -147,8 +147,36 @@ export interface SquadDispatchRequest {
   readonly background?: boolean
 }
 
+/** One user goal; a continuation spends the same budget and never renews admission. */
+export interface ExecutionChain {
+  readonly id: DispatchId
+  readonly revision: number
+  readonly maxContinuations: number
+  readonly usageBeforeRun: AgentTokenUsage
+  readonly tokenBudget?: number
+  readonly continuationOf?: DispatchId
+  readonly reason?: string
+  readonly progressReview?: string
+}
+
+export interface SquadContinuationRequest {
+  readonly sourceRunId: DispatchId
+  readonly expectedRevision: number
+  readonly reason: string
+  readonly progressReview: string
+  readonly assignments: readonly { readonly agentId: AgentId; readonly task: string; readonly dependsOn?: readonly AgentId[] }[]
+}
+
+export interface ContinuationAvailability {
+  readonly allowed: boolean
+  readonly reason: string
+  readonly sourceRunId: DispatchId
+  readonly expectedRevision: number
+}
+
 /** One traceable member result recorded inside the parent tool result. */
 export interface SquadMemberResult {
+  readonly reusedFrom?: DispatchId
   readonly agentId: AgentId
   readonly agentName: string
   readonly status: 'completed' | 'failed' | 'cancelled' | 'timed-out'
@@ -166,6 +194,46 @@ export interface SquadMemberResult {
   readonly usage?: AgentTokenUsage
   /** Bounded model-facing summary; the complete output above remains durable. */
   readonly handoff?: SquadMemberHandoff
+  readonly recovery?: MemberRecovery
+  /** Bounded evidence from the failed child's session; never interpreted as instructions. */
+  readonly executionEvidence?: string
+}
+
+export interface RetryDecision {
+  readonly action: 'retry' | 'revise' | 'stop'
+  readonly cause: 'transient' | 'task-scope' | 'assignment' | 'missing-context' | 'tooling' | 'unknown'
+  readonly confidence: 'supported' | 'limited' | 'insufficient'
+  readonly reason: string
+  readonly evidence: string[]
+  readonly progress: string
+  readonly nextTask: string
+  readonly uncertainty: string
+}
+
+/** System-owned diagnosis; separate from team membership and member execution attempts. */
+export interface MemberRecovery {
+  readonly state: 'diagnosing' | 'completed' | 'failed' | 'skipped'
+  readonly attempted: boolean
+  readonly provider: string
+  readonly model: string
+  readonly startedAt: number
+  readonly endedAt?: number
+  readonly runId?: string
+  readonly childId?: string
+  readonly usage?: AgentTokenUsage
+  readonly error?: string
+  readonly decision?: RetryDecision
+  readonly originalTask: string
+  readonly retryTask?: string
+  /** Preserve the first result even when a second attempt replaces the live member row. */
+  readonly firstAttempt: {
+    readonly status: SquadMemberResult['status']
+    readonly error?: string
+    readonly output: ContentBlock[]
+    readonly runId?: string
+    readonly childId?: string
+    readonly executionEvidence?: string
+  }
 }
 
 /** Bounded structured contribution passed between dependencies and to the lead Agent. */
@@ -195,7 +263,7 @@ export interface SquadExecutionPlan {
   readonly memberOrder: AgentId[]
   readonly assignments: SquadPlanAssignment[]
   /** Normal conversation sends are planned with the parent Agent's model route. */
-  readonly planner: 'main-agent' | 'squad-leader' | 'deterministic-fallback'
+  readonly planner: 'main-agent' | 'squad-leader' | 'deterministic-fallback' | 'lead-continuation'
   readonly plannerProvider?: string
   readonly plannerModel?: string
   readonly leaderAgentId?: AgentId
@@ -205,6 +273,8 @@ export interface SquadExecutionPlan {
 
 /** Canonical squad result; it is lossless JSON when materialized by the tool registry. */
 export interface SquadDispatchResult {
+  readonly chain?: ExecutionChain
+  readonly continuation?: ContinuationAvailability
   readonly dispatchId: DispatchId
   readonly squadId: SquadId
   readonly squadName: string
@@ -222,6 +292,10 @@ export interface SquadDispatchResult {
 
 /** Durable progress/history row used by the Web run center. */
 export interface SquadRunRecord {
+  readonly chain?: ExecutionChain
+  /** Durable acceptance receipt; changing a request cannot create a second successor. */
+  readonly continuationReceipt?: { readonly requestKey: string; readonly runId: DispatchId }
+  readonly definitionSnapshot?: { readonly squad: SquadRecord; readonly agents: readonly AgentDefinitionSnapshot[] }
   readonly id: DispatchId
   readonly sessionId: SessionId
   readonly sourceMessageId?: string
@@ -268,6 +342,7 @@ export interface SquadRunRecord {
 
 /** One live or settled row within a durable squad run. */
 export interface SquadRunMember {
+  readonly reusedFrom?: DispatchId
   readonly agentId: AgentId
   readonly agentName: string
   readonly provider: string
@@ -292,6 +367,7 @@ export interface SquadRunMember {
     readonly usage?: AgentTokenUsage
   }>
   readonly handoff?: SquadMemberHandoff
+  readonly recovery?: MemberRecovery
 }
 
 /** One bounded review cycle. Full review and repair output remain in the durable run. */

@@ -10,7 +10,7 @@ describe('DSH 0.1.5 browser entry', () => {
     let generation: ConnectionGeneration | undefined
     let notify = (): void => {}
     const unsubscribe = vi.fn()
-    const rpc = vi.fn(async () => ({ ok: true, value: { ...EMPTY_DATA, apiVersion: 5 } }))
+    const rpc = vi.fn(async () => ({ ok: true, value: { ...EMPTY_DATA, apiVersion: 6 } }))
     const connection = {
       generation: {
         getSnapshot: () => generation,

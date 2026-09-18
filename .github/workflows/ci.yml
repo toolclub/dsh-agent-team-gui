@@ -64,10 +64,10 @@ jobs:
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm run smoke:install
         env:
-          API_VERSION: 5
+          API_VERSION: 6
       - run: pnpm run smoke:browser
         env:
-          API_VERSION: 5
+          API_VERSION: 6
           SMOKE_SCREENSHOT_DIR: .artifacts/browser-smoke
       - name: Upload isolated diagnostics on failure
         if: failure()
@@ -106,7 +106,7 @@ jobs:
       - run: npm install --global @deepseek-ai/dsh@0.1.5-rc.1
       - run: pnpm run smoke:install
         env:
-          API_VERSION: 5
+          API_VERSION: 6
           PLUGIN_SPEC: github:toolclub/dsh-agent-team-gui#${{ github.sha }}
       - name: Upload exact-install diagnostics on failure
         if: failure()

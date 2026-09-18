@@ -181,4 +181,21 @@ describe('scoped delegation restrictions (#66)', () => {
     expect((await call('custom_delegate', other)).isError).toBe(false)
     expect(calls).toBe(1)
   })
+
+  it('blocks non-delegation tools too for the system diagnosis, including scoped tools', async () => {
+    const ctx = new Context()
+    ctx.provide('systemPrompt', { tools: () => () => {} })
+    const tools = new ToolRuntime(ctx)
+    const diagnosis = { options: { agentTeamGuiChild: true, agentTeamGuiDiagnosis: true } } as unknown as Agent
+    const scope = createScope(ctx, diagnosis)
+    let calls = 0
+    scope.ctx.tools.register(defineTool({ name: 'mutate_workspace', description: 'write files', parameters: {},
+      output: { schema: { type: 'string' }, render: (_args, value) => [{ type: 'text', text: value }] },
+      execute: async () => { calls++; return 'modified' },
+    }))
+    tools.guard(teamChildToolGuard(tools))
+    const result = await tools.execute({ name: 'mutate_workspace', agent: diagnosis, arguments: {}, signal: signal(), callId: ToolCallId('diagnosis') })
+    expect(result.isError).toBe(true)
+    expect(calls).toBe(0)
+  })
 })

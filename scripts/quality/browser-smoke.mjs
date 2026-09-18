@@ -519,6 +519,11 @@ try {
   await runSummary.focus()
   await page.keyboard.press('Space')
   invariant(await runSummary.getAttribute('aria-expanded') === 'true', 'Space did not expand the seeded Run Card')
+  await runCenter.getByRole('region', { name: /^(Execution chain|执行链)$/ }).waitFor({ state: 'visible' })
+  const recoveredMember = runCenter.locator(`[data-run-id="${seededRunId}"] .atg-run-member > summary`).first()
+  await recoveredMember.click()
+  await runCenter.getByRole('region', { name: /^(System retry diagnosis|系统重试诊断)$/ }).waitFor({ state: 'visible' })
+  invariant(await runCenter.getByText('Host restarted during diagnosis. No automatic continuation.').count() === 1, 'interrupted diagnosis was not surfaced in Run Center')
   await assertNoSeriousAccessibilityViolations(page, '[data-testid="agent-team-run-center"]', 'Run Center')
 
   const settledCancel = await fixture.rpc('run/cancel', { id: seededRunId })

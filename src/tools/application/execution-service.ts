@@ -6,6 +6,8 @@ import type { SubagentResult, SubagentRun } from '@deepseek-ai/dsh-subagent'
 import { deterministicExecutionPlan, executionWaves, normalizeHandoff, validateExecutionPlan } from '../orchestration.ts'
 import { boundedHandoffChain } from '../handoff-chain.ts'
 import { isDelegationTool } from '../delegation-policy.ts'
+import { exhaustedQuota, RETRY_DIAGNOSIS_CONTRACT, retryDecisionSchema, retryDiagnosisOutputSchema } from '../retry-diagnosis.ts'
+import { continuationRequestSchema, prepareContinuation } from '../continuation.ts'
 import { DEFAULT_HANDOFF_SUMMARY_MAX_CHARS } from '../../limits.ts'
 import { runMeteringCoverage, RunHistoryStore } from '../run-history.ts'
 import { AgentTeamError } from '../domain/host.ts'
@@ -18,6 +20,10 @@ import {
   SquadId,
   type AgentRecord,
   type AgentTokenUsage,
+  type MemberRecovery,
+  type ExecutionChain,
+  type SquadContinuationRequest,
+  type ContinuationAvailability,
   type AgentTeamRunExportDocument,
   type SquadAssignment,
   type SquadDispatchRequest,
@@ -40,6 +46,9 @@ interface ResolvedMember {
 }
 
 export interface DispatchTrace {
+  readonly chain?: ExecutionChain
+  readonly reusedMembers?: ReadonlyMap<AgentId, SquadRunMember>
+  readonly previousMembers?: ReadonlyMap<AgentId, SquadRunMember>
   /** Model-tool admission: claim only after caller input and definitions validate. */
   readonly claimSourceMessage?: boolean
   readonly sessionId?: SessionId
@@ -81,6 +90,7 @@ export class ExecutionApplicationService extends DefinitionApplicationService {
   private readonly backgroundAcceptances = new Map<string, Promise<{ id: DispatchId; status: 'queued'; jobId?: string }>>()
   private readonly pendingBackgroundRuns = new Set<DispatchId>()
   private readonly usageMeter = new OfficialUsageMeter(this.ctx)
+  private readonly continuationCalls = new Map<DispatchId, { key: string; result: Promise<SquadDispatchResult> }>()
 
   protected history(): RunHistoryStore {
     this.runHistory ??= new RunHistoryStore(this.runs())
@@ -215,12 +225,116 @@ export class ExecutionApplicationService extends DefinitionApplicationService {
     return this.dispatch(request, parent, signal, { sessionId: parent.id, sourceMessageId, claimSourceMessage: true })
   }
 
+  private chainUsage(run: SquadRunRecord | undefined): AgentTokenUsage {
+    return this.addUsage(run?.chain?.usageBeforeRun, run?.usage, run?.liveUsage?.planner, run?.liveUsage?.review, run?.liveUsage?.repair)
+  }
+
+  private continuationAvailability(run: SquadRunRecord): ContinuationAvailability {
+    const base = { sourceRunId: run.id, expectedRevision: run.chain?.revision ?? 0 }
+    const reject = (reason: string) => ({ ...base, allowed: false, reason })
+    if (run.chain === undefined || run.definitionSnapshot === undefined || run.plan?.decision !== 'run') return reject('This run has no resumable execution-chain snapshot.')
+    if (run.status !== 'failed' && run.status !== 'partial') return reject('Only settled failed or partial runs may continue; cancellation and interruption require user review.')
+    if (run.chain.revision >= run.chain.maxContinuations) return reject('Execution-chain continuation limit reached.')
+    if (run.continuationReceipt !== undefined) return reject('A continuation has already been accepted for this plan version.')
+    if (run.chain.tokenBudget !== undefined && this.chainUsage(run).totalTokens >= run.chain.tokenBudget) return reject('Execution-chain Token budget exhausted.')
+    if (run.members.some(member => member.status !== 'completed' && (exhaustedQuota(member.error) || exhaustedQuota(member.recovery?.error)))) return reject('Provider billing quota or balance is exhausted; user action is required.')
+    if (!run.plan.assignments.some(node => run.members.find(member => member.agentId === node.agentId)?.status !== 'completed')) return reject('No unfinished member task; quality-only failures require user review.')
+    return { ...base, allowed: true, reason: 'The lead may submit one reviewed continuation of unfinished tasks with continue_squad_run. Preserve the original goal and verified work.' }
+  }
+
+  private storedResult(run: SquadRunRecord): SquadDispatchResult {
+    if (run.status === 'planning' || run.status === 'queued' || run.status === 'running') throw new AgentTeamError(`Continuation ${run.id} is already active; inspect Run Center instead of dispatching again.`, 'INVALID_DISPATCH')
+    return {
+      dispatchId: run.id, squadId: run.squadId, squadName: run.squadName, task: run.task,
+      executionMode: run.executionMode, contextMode: run.contextMode, status: run.status,
+      startedAt: run.startedAt, endedAt: run.endedAt ?? run.startedAt, usage: run.usage,
+      members: run.members.filter(member => ['completed', 'failed', 'timed-out', 'cancelled'].includes(member.status)).map(member => ({
+        ...member, status: member.status as SquadMemberResult['status'],
+      })),
+      ...(run.plan === undefined ? {} : { plan: run.plan }), ...(run.quality === undefined ? {} : { quality: run.quality }),
+      ...(run.chain === undefined ? {} : { chain: run.chain }), continuation: this.continuationAvailability(run),
+    }
+  }
+
+  async continueFromTool(input: SquadContinuationRequest, parent: Agent, signal: AbortSignal): Promise<SquadDispatchResult> {
+    throwIfAborted(signal)
+    if (this.isDelegatedAgent(parent)) throw new AgentTeamError('Only the lead may continue an execution chain.', 'INVALID_DISPATCH')
+    const parsed = continuationRequestSchema.parse(input)
+    const request: SquadContinuationRequest = { ...parsed, assignments: parsed.assignments.map(({ dependsOn, ...node }) => ({
+      ...node, ...(dependsOn === undefined ? {} : { dependsOn }),
+    })) }
+    const source = this.runs().get(request.sourceRunId)
+    if (source === undefined || source.sessionId !== parent.id || source.sourceMessageId === undefined
+      || source.sourceMessageId !== this.latestHumanMessageId(parent)) {
+      throw new AgentTeamError('Continuation must belong to the calling session and its current user message.', 'INVALID_DISPATCH')
+    }
+    if (source.chain?.revision !== request.expectedRevision) throw new AgentTeamError('Stale execution-chain plan revision.', 'INVALID_DISPATCH')
+    // The system assigns the successor id. Model-supplied fresh ids cannot bypass this receipt.
+    const key = createHash('sha256').update(JSON.stringify({
+      sourceRunId: source.id, revision: request.expectedRevision,
+      assignments: [...request.assignments].sort((a, b) => a.agentId.localeCompare(b.agentId)).map(node => ({
+        ...node, dependsOn: [...(node.dependsOn ?? source.plan?.assignments.find(old => old.agentId === node.agentId)?.dependsOn ?? [])].sort(),
+      })),
+    })).digest('hex')
+    const existing = this.continuationCalls.get(source.id)
+    if (existing !== undefined) {
+      if (existing.key !== key) throw new AgentTeamError('A different continuation is already being admitted for this plan.', 'INVALID_DISPATCH')
+      return existing.result
+    }
+    if (source.continuationReceipt !== undefined) {
+      if (source.continuationReceipt.requestKey !== key) throw new AgentTeamError('This plan already has an accepted continuation; inspect that run.', 'INVALID_DISPATCH')
+      const accepted = this.runs().get(source.continuationReceipt.runId)
+      if (accepted === undefined) throw new AgentTeamError('Continuation was accepted but its run is unavailable. Do not replay side effects; user review is required.', 'INVALID_DISPATCH')
+      return this.storedResult(accepted)
+    }
+    const work = this.admitContinuation(source, request, key, parent, signal)
+    this.continuationCalls.set(source.id, { key, result: work })
+    try { return await work } finally { this.continuationCalls.delete(source.id) }
+  }
+
+  private async admitContinuation(source: SquadRunRecord, request: SquadContinuationRequest, key: string, parent: Agent, signal: AbortSignal): Promise<SquadDispatchResult> {
+    const eligibility = this.continuationAvailability(source)
+    if (!eligibility.allowed) throw new AgentTeamError(eligibility.reason, 'INVALID_DISPATCH')
+    const { plan, affected } = prepareContinuation(source, request)
+    const snapshot = source.definitionSnapshot!
+    const current = await this.readSquadExecutionSnapshot(source.squadId, signal)
+    if (JSON.stringify(current.squad) !== JSON.stringify(snapshot.squad)
+      || snapshot.agents.some(item => JSON.stringify(current.agents.get(item.id)) !== JSON.stringify(item.record))) {
+      throw new AgentTeamError('Team definitions changed after this run. Review the new permissions and configuration before a new user request.', 'INVALID_DISPATCH')
+    }
+    throwIfAborted(signal)
+    const successor = DispatchId(randomUUID())
+    const receipt = { requestKey: key, runId: successor }
+    // Commit the receipt before launching work. Even a crash cannot silently reopen admission.
+    try { await this.runs().update(source.id, latest => {
+      if (latest.continuationReceipt !== undefined || latest.chain?.revision !== request.expectedRevision) {
+        throw new AgentTeamError('The source plan already advanced.', 'INVALID_DISPATCH')
+      }
+      return { ...latest, continuationReceipt: receipt }
+    }) } catch (error: unknown) {
+      const committed = this.runs().get(source.id)?.continuationReceipt
+      if (committed?.runId !== successor || committed.requestKey !== key) throw error
+    }
+    const chain: ExecutionChain = {
+      ...source.chain!, revision: source.chain!.revision + 1, continuationOf: source.id,
+      usageBeforeRun: this.chainUsage(source), reason: request.reason, progressReview: request.progressReview,
+    }
+    return this.dispatch({ squadId: source.squadId, task: source.task, executionMode: source.executionMode, contextMode: source.contextMode }, parent, signal, {
+      dispatchId: successor, sessionId: source.sessionId, sourceMessageId: source.sourceMessageId!,
+      chain, replayPlan: plan, frozenDefinition: { squad: snapshot.squad, agents: new Map(snapshot.agents.map(item => [item.id, item.record])) },
+      reusedMembers: new Map(source.members.filter(member => plan.memberOrder.includes(member.agentId) && !affected.has(member.agentId)).map(member => [member.agentId, member])),
+      previousMembers: new Map(source.members.map(member => [member.agentId, member])),
+    })
+  }
+
   protected renderSquadContext(result: SquadDispatchResult): string {
     if (result.status === 'skipped') {
       return `The selected squad evaluated this request and intentionally skipped execution: ${result.plan?.reason ?? 'the task does not need the configured team'}. Answer the user directly; do not dispatch the squad again for this message.`
     }
     const bounded = {
       dispatchId: result.dispatchId,
+      chain: result.chain,
+      continuation: result.continuation,
       squadName: result.squadName,
       status: result.status,
       plan: result.plan === undefined ? undefined : {
@@ -228,6 +342,7 @@ export class ExecutionApplicationService extends DefinitionApplicationService {
         reason: result.plan.reason,
         summary: result.plan.summary,
         memberOrder: result.plan.memberOrder,
+        assignments: result.plan.assignments.map(node => ({ ...node, task: this.boundedExcerpt(node.task, 2_000) })),
       },
       members: result.members.map(member => ({
         agentId: member.agentId,
@@ -235,6 +350,10 @@ export class ExecutionApplicationService extends DefinitionApplicationService {
         status: member.status,
         handoff: member.handoff,
         error: member.error,
+        reusedFrom: member.reusedFrom,
+        recovery: member.recovery === undefined ? undefined : {
+          state: member.recovery.state, decision: member.recovery.decision, error: member.recovery.error,
+        },
       })),
       quality: result.quality === undefined ? undefined : {
         approved: result.quality.approved,
@@ -245,7 +364,7 @@ export class ExecutionApplicationService extends DefinitionApplicationService {
     return [
       `The selected squad attempt has settled with status "${result.status}". Do not dispatch it again for this user message.`,
       ...(result.status === 'completed' ? [] : [
-        'Report the failed or incomplete assignments and their evidence. Propose a narrower follow-up user request if the brief needs changing; do not silently replace failed members by implementing their work yourself. Run Center retry replays the saved plan and does not replan.',
+        'Report the failed or incomplete assignments and their evidence. When continuation.allowed is true, review prior progress and use continue_squad_run with sourceRunId, expectedRevision, reason, progressReview, and revised assignments. Wait until this run has settled. Preserve the original goal and independent successful work; do not silently replace failed members yourself. If blocked or information is missing, explain the blocker and ask the user. Run Center manual retry is a separate explicit replay.',
       ]),
       `Bounded structured squad handoff (full raw output remains in Run Center):`,
       JSON.stringify(bounded),
@@ -406,6 +525,7 @@ export class ExecutionApplicationService extends DefinitionApplicationService {
       errors.push(`run ended with stop reason ${result.stopReason}`)
     }
     if (disposalError !== undefined) errors.push(`run cleanup failed: ${this.errorText(disposalError)}`)
+    const executionEvidence = this.executionEvidence(run)
     return {
       agentId: member.id,
       agentName: member.record.name,
@@ -419,8 +539,18 @@ export class ExecutionApplicationService extends DefinitionApplicationService {
       endedAt: Date.now(),
       ...usage === undefined ? {} : { usage },
       ...errors.length === 0 ? {} : { error: errors.join('; ') },
+      ...(executionEvidence === undefined ? {} : { executionEvidence }),
       ...result === undefined ? {} : { handoff: normalizeHandoff(result.structured, deliveredText, handoffSummaryMaxChars) },
     }
+  }
+
+  private executionEvidence(run: SubagentRun): string | undefined {
+    try {
+      const events = run.localAgent?.session.snapshotEvents().filter(event =>
+        event.type === 'assistant/message' || event.type === 'tool/call' || event.type === 'tool/result').slice(-16)
+      if (events === undefined || events.length === 0) return undefined
+      return this.boundedExcerpt(events.map(event => this.boundedExcerpt(JSON.stringify(event), 1_000)).join('\n'), 12_000)
+    } catch { return undefined }
   }
 
   private async runMember(
@@ -625,23 +755,157 @@ export class ExecutionApplicationService extends DefinitionApplicationService {
     dispatchId: DispatchId,
   ): Promise<SquadMemberResult> {
     const first = await this.runMember(provider, squad, member, sharedTask, chainText, parent, signal, dispatchId, 1)
-    if (first.status === 'completed' || signal.aborted || (squad.failurePolicy ?? 'continue') !== 'retry-once') return first
+    if (first.status === 'completed' || first.status === 'cancelled' || signal.aborted || (squad.failurePolicy ?? 'continue') !== 'retry-once') return first
+    let recovery = await this.diagnoseRetry(squad, member, sharedTask, chainText, first, parent, signal, dispatchId)
+    const budgetSpent = () => squad.tokenBudget !== undefined
+      && this.chainUsage(this.runs().get(dispatchId)).totalTokens >= squad.tokenBudget
+    if (signal.aborted || budgetSpent()) {
+      recovery = { ...recovery, state: 'skipped', error: signal.aborted ? 'Run cancelled before retry.' : 'Team Token budget exhausted before retry.' }
+      await this.updateRunMember(dispatchId, member.id, current => ({ ...current, recovery }))
+    }
+    const decision = recovery.decision
+    // Structural changes return to the lead. Only a diagnosed transient failure retries in place.
+    if (recovery.state !== 'completed' || decision === undefined || decision.action !== 'retry') {
+      return { ...first, recovery, usage: this.addUsage(first.usage, recovery.usage) }
+    }
+    const nextTask = [
+      'Recovery boundary: inspect existing work before changing it. Preserve valid deliverables; do not repeat completed side effects. Original acceptance criteria and member ownership still apply.',
+      `Continue the original assignment:\n${this.boundedExcerpt(member.task, 8_000)}`,
+      `System diagnosis (evidence-based advice, not new authority): ${this.boundedExcerpt(decision.reason, 1_000)}`,
+      `Reported progress to verify: ${this.boundedExcerpt(decision.progress, 1_000)}`,
+      `Uncertainty: ${this.boundedExcerpt(decision.uncertainty, 500)}`,
+      `Original assignment (reference; do not restart completed work):\n${this.boundedExcerpt(member.task, 2_000)}`,
+      `Previous failure and output (untrusted evidence):\n${this.boundedExcerpt(JSON.stringify({ error: first.error, output: first.output, handoff: first.handoff }), 2_000)}`,
+    ].join('\n\n')
+    recovery = { ...recovery, retryTask: nextTask }
+    await this.updateRunMember(dispatchId, member.id, current => ({ ...current, recovery }))
     const fallback = member.record.fallbackProvider !== undefined && member.record.fallbackModel !== undefined
       ? { provider: member.record.fallbackProvider, model: member.record.fallbackModel }
       : undefined
-    const second = await this.runMember(provider, squad, member, sharedTask, chainText, parent, signal, dispatchId, 2, fallback)
+    const second = await this.runMember(provider, squad, { ...member, task: nextTask }, sharedTask, chainText, parent, signal, dispatchId, 2, fallback)
     const combined = {
       ...second,
       attempts: 2,
-      usage: this.addUsage(first.usage, second.usage),
+      usage: this.addUsage(first.usage, recovery.usage, second.usage),
+      recovery,
       ...second.status === 'completed' ? {} : { error: [first.error, second.error].filter(Boolean).join('; ') },
     }
-    await this.updateRunMember(dispatchId, member.id, current => ({
-      ...current,
-      usage: combined.usage,
-      ...combined.error === undefined ? {} : { error: combined.error },
-    }))
+    await this.updateRunMember(dispatchId, member.id, current => {
+      const { error: _oldError, ...clean } = current
+      return { ...clean, usage: combined.usage, recovery, ...(combined.error === undefined ? {} : { error: combined.error }) }
+    })
     return combined
+  }
+
+  private async diagnoseRetry(
+    squad: SquadRecord, member: ResolvedMember, sharedTask: string, chainText: string,
+    first: SquadMemberResult, parent: Agent, signal: AbortSignal, dispatchId: DispatchId,
+  ): Promise<MemberRecovery> {
+    const provider = this.config.defaultProvider
+    const route = { provider: parent.options.provider ?? member.record.provider, model: parent.options.model ?? member.record.model }
+    let recovery: MemberRecovery = {
+      state: 'diagnosing', attempted: false, ...route, startedAt: Date.now(), originalTask: member.task,
+      firstAttempt: {
+        status: first.status, output: first.output,
+        ...(first.error === undefined ? {} : { error: first.error }),
+        ...(first.runId === undefined ? {} : { runId: first.runId }),
+        ...(first.childId === undefined ? {} : { childId: first.childId }),
+        ...(first.executionEvidence === undefined ? {} : { executionEvidence: first.executionEvidence }),
+      },
+    }
+    const persist = async (): Promise<void> => {
+      await this.updateRunMember(dispatchId, member.id, current => ({ ...current, recovery, usage: this.addUsage(first.usage, recovery.usage) }))
+    }
+    const remaining = squad.tokenBudget === undefined ? undefined : squad.tokenBudget - this.chainUsage(this.runs().get(dispatchId)).totalTokens
+    if (exhaustedQuota(first.error)) {
+      recovery = { ...recovery, state: 'skipped', endedAt: Date.now(), error: 'Provider billing quota or balance is exhausted. Resolve the account limit before continuing; no diagnosis or retry was started.' }
+      await persist()
+      return recovery
+    }
+    if (signal.aborted || (remaining !== undefined && remaining <= 0)) {
+      recovery = { ...recovery, state: 'skipped', endedAt: Date.now(), error: signal.aborted ? 'Run cancelled.' : 'Team Token budget exhausted before diagnosis.' }
+      await persist()
+      return recovery
+    }
+    // Only explicit startup refusal/DNS failures with no returned execution evidence are
+    // classified directly. Mid-run disconnects can have side effects and need diagnosis.
+    if (first.runId === undefined && first.childId === undefined && first.output.length === 0
+      && first.executionEvidence === undefined && /^start failed:.*\b(ECONNREFUSED|ENOTFOUND|EAI_AGAIN)\b/s.test(first.error ?? '')) {
+      recovery = { ...recovery, state: 'completed', endedAt: Date.now(), decision: {
+        action: 'retry', cause: 'transient', confidence: 'supported', reason: 'Explicit startup connection/DNS failure before a child run was returned.',
+        evidence: [first.error!.slice(0, 1_000)], progress: 'No child execution result was returned. Check existing artifacts before making changes.', nextTask: '',
+        uncertainty: 'Startup failure does not prove that every external provider is free of side effects.',
+      } }
+      await persist()
+      return recovery
+    }
+    await persist()
+    const timeout = new AbortController()
+    const timeoutMs = Math.min(squad.memberTimeoutMs ?? 60_000, 60_000)
+    const timer = setTimeout(() => timeout.abort(new Error('Recovery diagnosis timed out.')), timeoutMs)
+    const diagnosisSignal = AbortSignal.any([signal, timeout.signal])
+    let run: SubagentRun | undefined
+    let baseline: TokenUsageProjection | undefined
+    let stopTracking: (() => Promise<AgentTokenUsage | undefined>) | undefined
+    let finished = false
+    const finish = async (): Promise<void> => {
+      if (finished) return
+      finished = true
+      try { await run?.dispose() } finally {
+        const usage = await stopTracking?.() ?? (run === undefined ? undefined : this.usageFor(run, baseline))
+        if (usage !== undefined) recovery = { ...recovery, usage }
+      }
+    }
+    try {
+      const capabilities = this.ctx.subagents.getProvider(provider)?.capabilities
+      if (!capabilities?.outputSchema || !capabilities.toolFilter || !capabilities.depthLimit) {
+        throw new Error(`Recovery provider "${provider}" cannot enforce structured, tool-free diagnosis.`)
+      }
+      recovery = { ...recovery, attempted: true }
+      await persist()
+      throwIfAborted(diagnosisSignal)
+      run = await this.ctx.subagents.start(provider, {
+        label: `${squad.name}/System retry diagnosis/${member.record.name}`,
+        parent, signal: diagnosisSignal,
+        agentOptions: { ...route, agentTeamGuiChild: true, agentTeamGuiDiagnosis: true, maxTokens: Math.min(2_048, remaining ?? 2_048) },
+        toolFilter: { allow: [] }, maxDepth: 1, outputSchema: retryDiagnosisOutputSchema,
+        ...(capabilities.persona ? { persona: RETRY_DIAGNOSIS_CONTRACT } : {}),
+        prompt: [{ type: 'text', text: [
+          RETRY_DIAGNOSIS_CONTRACT,
+          `Original goal:\n${this.boundedExcerpt(sharedTask, 12_000)}`,
+          `Member role:\n${this.boundedExcerpt(member.record.systemPrompt, 4_000)}`,
+          `Original assignment:\n${this.boundedExcerpt(member.task, 12_000)}`,
+          `Dependency handoffs:\n${this.boundedExcerpt(chainText, 8_000)}`,
+          `Failed attempt evidence:\n${this.boundedExcerpt(JSON.stringify({
+            status: first.status, error: first.error, stopReason: first.stopReason, output: first.output,
+            handoff: first.handoff, startedAt: first.startedAt, endedAt: first.endedAt, usage: first.usage,
+            executionEvidence: first.executionEvidence,
+          }), 16_000)}`,
+          `Limits: memberTimeoutMs=${squad.memberTimeoutMs ?? 'unset'}, memberMaxTokens=${member.record.maxTokens ?? 'provider default'}, remainingReportedTeamTokens=${remaining ?? 'unset'}. Unreported usage is unknown, not zero.`,
+        ].join('\n\n') }],
+      })
+      recovery = { ...recovery, runId: run.id, ...(run.localAgent === undefined ? {} : { childId: run.localAgent.id }) }
+      baseline = this.usageBaselineFor(run)
+      stopTracking = this.usageMeter.track(run, baseline, async usage => {
+        recovery = { ...recovery, usage }
+        await persist()
+      }, 'retry diagnosis')
+      const result = await run.result
+      await finish()
+      throwIfAborted(diagnosisSignal)
+      if (result.stopReason !== 'completed') throw new Error(`Recovery diagnosis ended with ${result.stopReason}.`)
+      const decision = retryDecisionSchema.parse(result.structured)
+      if (decision.action === 'revise' && decision.nextTask.trim() === member.task.trim()) throw new Error('Diagnosis returned an unchanged assignment as a revision.')
+      recovery = { ...recovery, state: 'completed', decision, endedAt: Date.now() }
+    } catch (error: unknown) {
+      await finish().catch(() => undefined)
+      recovery = { ...recovery, state: 'failed', endedAt: Date.now(), error: this.errorText(error) }
+    } finally {
+      clearTimeout(timer)
+      await finish().catch(() => undefined)
+    }
+    await persist()
+    return recovery
   }
 
   private async createAutomaticPlan(
@@ -1094,6 +1358,10 @@ export class ExecutionApplicationService extends DefinitionApplicationService {
       throw error
     }
     const dispatchId = trace.dispatchId ?? DispatchId(randomUUID())
+    const chain: ExecutionChain = trace.chain ?? {
+      id: dispatchId, revision: 0, maxContinuations: 1, usageBeforeRun: { ...ZERO_USAGE },
+      ...(squad.tokenBudget === undefined ? {} : { tokenBudget: squad.tokenBudget }),
+    }
     const startedAt = Date.now()
     const controller = new AbortController()
     this.activeRunControllers.set(dispatchId, controller)
@@ -1105,6 +1373,8 @@ export class ExecutionApplicationService extends DefinitionApplicationService {
       && replayPlan === undefined
       && (trace.sourceMessageId !== undefined || squad.leaderAgentId !== undefined)
     const initial: SquadRunRecord = {
+      chain,
+      definitionSnapshot: { squad: structuredClone(squad), agents: [...agents].map(([id, record]) => ({ id, record: structuredClone(record) })) },
       id: dispatchId,
       sessionId: trace.sessionId ?? parent.id,
       ...trace.sourceMessageId === undefined ? {} : { sourceMessageId: trace.sourceMessageId },
@@ -1157,7 +1427,7 @@ export class ExecutionApplicationService extends DefinitionApplicationService {
         return {
           dispatchId, squadId: request.squadId, squadName: squad.name, task: request.task,
           executionMode, contextMode, status: 'skipped', members: [], usage: this.addUsage(plan.usage),
-          startedAt, endedAt, plan,
+          startedAt, endedAt, plan, chain,
         }
       }
 
@@ -1220,6 +1490,17 @@ export class ExecutionApplicationService extends DefinitionApplicationService {
       const provider = contextMode === 'fork' ? 'fork' : this.config.defaultProvider
       const results: SquadMemberResult[] = []
       const resultById = new Map<AgentId, SquadMemberResult>()
+      for (const [id, previous] of trace.reusedMembers ?? []) {
+        const reused: SquadMemberResult = {
+          agentId: id, agentName: previous.agentName, status: 'completed', attempts: 0,
+          output: previous.output, reusedFrom: chain.continuationOf!,
+          ...(previous.handoff === undefined ? {} : { handoff: previous.handoff }),
+          ...(previous.childId === undefined ? {} : { childId: previous.childId }),
+          ...(previous.runId === undefined ? {} : { runId: previous.runId }),
+        }
+        results.push(reused); resultById.set(id, reused)
+        await this.updateRunMember(dispatchId, id, current => ({ ...current, ...reused }))
+      }
       let haltReason: 'cancelled' | 'failure' | 'budget' | undefined
       const concurrency = executionMode === 'parallel'
         ? Math.max(1, Math.min(squad.maxConcurrency ?? selectedMembers.length, selectedMembers.length))
@@ -1227,11 +1508,12 @@ export class ExecutionApplicationService extends DefinitionApplicationService {
       outer: for (const wave of executionWaves(nodes)) {
         for (let offset = 0; offset < wave.length; offset += concurrency) {
           if (runSignal.aborted) { haltReason = 'cancelled'; break outer }
-          const used = this.addUsage(executionPlan.usage, ...results.map(item => item.usage))
+          const used = this.addUsage(chain.usageBeforeRun, executionPlan.usage, ...results.map(item => item.usage))
           if (squad.tokenBudget !== undefined && used.totalTokens >= squad.tokenBudget) { haltReason = 'budget'; break outer }
           const batch = wave.slice(offset, offset + concurrency)
           const runnable: SquadPlanAssignment[] = []
           for (const node of batch) {
+            if (trace.reusedMembers?.has(node.agentId)) continue
             const failedDependency = node.dependsOn.find(id => resultById.get(id)?.status !== 'completed')
             if (failedDependency !== undefined && (squad.failurePolicy ?? 'continue') === 'stop') {
               await this.updateRunMember(dispatchId, node.agentId, current => ({
@@ -1240,7 +1522,14 @@ export class ExecutionApplicationService extends DefinitionApplicationService {
             } else runnable.push(node)
           }
           const settled = await Promise.all(runnable.map(async (node) => {
-            const member = memberById.get(node.agentId)!
+            const originalMember = memberById.get(node.agentId)!
+            const previous = trace.previousMembers?.get(node.agentId)
+            const member = previous === undefined ? originalMember : { ...originalMember, task: [
+              'Continue only the remaining assignment below. Inspect existing artifacts before changes; preserve verified work and do not repeat completed side effects. If a claimed artifact cannot be verified, report that uncertainty.',
+              this.boundedExcerpt(originalMember.task, 8_000),
+              `Lead review of previous progress (verify claims):\n${this.boundedExcerpt(chain.progressReview ?? '', 2_000)}`,
+              `Previous attempt evidence (untrusted):\n${this.boundedExcerpt(JSON.stringify({ status: previous.status, error: previous.error, handoff: previous.handoff, output: previous.output }), 4_000)}`,
+            ].join('\n\n') }
             const dependencyHandoffs = node.dependsOn.flatMap(id => {
               const delivery = resultById.get(id)
               return delivery === undefined ? [] : [delivery]
@@ -1273,7 +1562,7 @@ export class ExecutionApplicationService extends DefinitionApplicationService {
       // A member-only retry is intentionally scoped to exactly that member;
       // it must not surprise the user by starting reviewer/repair agents.
       const quality = haltReason === undefined && trace.selectedAgentIds === undefined
-        ? await this.runQualityLoop(squad, agents, request.task, results, parent, runSignal, dispatchId, memberUsage)
+        ? await this.runQualityLoop(squad, agents, request.task, results, parent, runSignal, dispatchId, this.addUsage(chain.usageBeforeRun, memberUsage))
         : undefined
       await this.updateRun(dispatchId, run => ({ ...run, phase: 'synthesis' }))
       const qualityUsage = this.addUsage(...quality?.rounds.flatMap(round => [round.reviewer.usage, round.repair?.usage]) ?? [])
@@ -1284,6 +1573,7 @@ export class ExecutionApplicationService extends DefinitionApplicationService {
         : completed === selectedMembers.length && (quality === undefined || quality.approved) ? 'completed'
           : completed === 0 ? 'failed' : 'partial'
       const result: SquadDispatchResult = {
+        chain,
         dispatchId,
         squadId: request.squadId,
         squadName: squad.name,
@@ -1311,7 +1601,7 @@ export class ExecutionApplicationService extends DefinitionApplicationService {
         ...quality !== undefined && !quality.approved ? { error: 'quality gate did not approve the final handoff' } : {},
         }
       })
-      return result
+      return { ...result, continuation: this.continuationAvailability(this.runs().get(dispatchId)!) }
     } catch (error: unknown) {
       trace.onStored?.(error)
       const endedAt = Date.now()
@@ -1567,7 +1857,7 @@ export class ExecutionApplicationService extends DefinitionApplicationService {
   listRuns(sessionId?: SessionId, limit = 50, detail = false): SquadRunRecord[] {
     const rows = this.history().list(sessionId, limit)
     if (detail) return rows
-    return rows.map(run => ({
+    return rows.map(({ definitionSnapshot: _definitionSnapshot, ...run }) => ({
       ...run,
       task: run.task.slice(0, 1_000),
       ...(run.error === undefined ? {} : { error: run.error.slice(0, 1_000) }),
@@ -1577,6 +1867,11 @@ export class ExecutionApplicationService extends DefinitionApplicationService {
       members: run.members.map(member => ({
         ...member,
         output: [],
+        ...(member.recovery === undefined ? {} : { recovery: {
+          ...member.recovery, originalTask: member.recovery.originalTask.slice(0, 500),
+          ...(member.recovery.retryTask === undefined ? {} : { retryTask: member.recovery.retryTask.slice(0, 500) }),
+          firstAttempt: { ...member.recovery.firstAttempt, output: [], executionEvidence: '' },
+        } }),
         ...(member.error === undefined ? {} : { error: member.error.slice(0, 1_000) }),
         ...(member.handoff === undefined ? {} : { handoff: { ...member.handoff, summary: member.handoff.summary.slice(0, 1_000) } }),
       })),

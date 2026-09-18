@@ -11,7 +11,7 @@ import { createDispatchToSquadTool } from '../src/tools/dispatch-to-squad.ts'
 import { createAgentTeamRpcHandler } from '../src/rpc.ts'
 import { agentRecordReadSchema, agentRecordSchema, squadRecordReadSchema, squadRecordSchema } from '../src/spec.ts'
 import AgentTeamService from '../src/index.ts'
-import { agent, createService, MemoryTable, researcherId, reviewerId, squadId, writerId } from './helpers.ts'
+import { agent, createService, successfulDiagnosisRun, MemoryTable, researcherId, reviewerId, squadId, writerId } from './helpers.ts'
 
 function deferred<T>() {
   let resolve!: (value: T) => void
@@ -1230,7 +1230,8 @@ describe('v0.5 P1 compatibility and mutation certainty', () => {
     let attempts = 0
     let activeSession: Agent['session'] | undefined
     const state = createService({
-      start: async () => {
+      start: async (_provider, request) => {
+        if (request.agentOptions?.agentTeamGuiDiagnosis) return successfulDiagnosisRun()
         attempts += 1
         const session = { firstLiveSeq: 1 } as unknown as Agent['session']
         activeSession = session
@@ -1267,7 +1268,8 @@ describe('v0.5 P1 compatibility and mutation certainty', () => {
     expect(state.service.getRun(result.dispatchId)?.members[0]).toMatchObject({
       attempts: 2, usage: { totalTokens: 6 }, usageSamples: { metered: 2, total: 2 },
     })
-    expect(state.service.getRun(result.dispatchId)?.meteringCoverage).toBe('full')
+    // Both member attempts are metered; the coordinator fixture has no provider sample.
+    expect(state.service.getRun(result.dispatchId)?.meteringCoverage).toBe('partial')
   })
 
   it('captures a final provider projection published only during run disposal', async () => {
@@ -1676,7 +1678,8 @@ describe('v0.5 final Host safety gates', () => {
     let attempt = 0
     const fallbackSession = { header: {}, firstLiveSeq: 0 } as unknown as Agent['session']
     const state = createService({
-      start: async () => {
+      start: async (_provider, request) => {
+        if (request.agentOptions?.agentTeamGuiDiagnosis) return successfulDiagnosisRun()
         attempt += 1
         if (attempt === 1) return {
           id: SessionId('primary-attempt'), localAgent: undefined,
