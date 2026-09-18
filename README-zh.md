@@ -41,14 +41,15 @@ Provider 上报的 Token 用量；下一次继续使用同一套小队配置。
 
 | 插件版本 | DSH 版本 | 升级建议 |
 | --- | --- | --- |
-| **1.1.1** | `>=0.1.5-rc.1 <0.1.6-0` | 推荐版本，修复工具限制、审核预算、派单占用和交接 JSON |
-| 1.1.0 | `>=0.1.5-rc.1 <0.1.6-0` | 首个 0.1.5 适配版本，建议更新插件到 1.1.1 |
+| **1.2.0** | `>=0.1.5-rc.1 <0.1.6-0` | 推荐版本，增加失败诊断和主 Agent 受控继续派工 |
+| 1.1.1 | `>=0.1.5-rc.1 <0.1.6-0` | 修复早期工作流问题，自动重试仍复用原任务 |
+| 1.1.0 | `>=0.1.5-rc.1 <0.1.6-0` | 首个 0.1.5 适配版本，建议更新插件到 1.2.0 |
 | 1.0.1 | 已验证 `0.1.1-rc.2` | 旧版集成；需要同时升级 DSH 和插件 |
 
 已有导览提供[英文字幕](https://github.com/toolclub/dsh-agent-team-gui/blob/main/docs/promotion/demo-captions.en.srt)
 和[中文字幕](https://github.com/toolclub/dsh-agent-team-gui/blob/main/docs/promotion/demo-captions.zh-CN.srt)，可在支持字幕的播放器中手动加载 SRT；GitHub 不会自动叠加字幕。
 
-从 DSH 0.1.1 升级时，请搭配 **插件 v1.1.1 + DSH 0.1.5**。新版修复了加载时的
+从 DSH 0.1.1 升级时，请搭配 **插件 v1.2.0 + DSH 0.1.5**。新版修复了加载时的
 `source.subscribe` 报错，并适配连接恢复和 Session API；现有小队定义与运行记录继续保留。
 升级后重启 DSH 并刷新浏览器。CLI 可能显示 `0.1.5-rc.1`，内部兼容包实际解析为 `0.1.5-rc.2`。
 
@@ -56,10 +57,10 @@ Provider 上报的 Token 用量；下一次继续使用同一套小队配置。
 `>=22.19.0 <23` 或 `>=24.0.0`（不支持 Node.js 23）、pnpm，以及至少一条已经配置好的
 DSH provider/model 路由。仓库 CI 当前使用 DSH `0.1.5-rc.1`。
 
-直接安装 **v1.1.1 预编译发布包**：
+直接安装 **v1.2.0 预编译发布包**：
 
 ```sh
-dsh plugin --profile web add -w https://github.com/toolclub/dsh-agent-team-gui/releases/download/v1.1.1/dsh-agent-team-gui-1.1.1.tgz
+dsh plugin --profile web add -w https://github.com/toolclub/dsh-agent-team-gui/releases/download/v1.2.0/dsh-agent-team-gui-1.2.0.tgz
 dsh --profile web
 ```
 
@@ -302,7 +303,7 @@ Web bundle 只插入一条唯一 Host row；它复用 Web profile 已有的 stor
 如果希望从已审查的源码构建，可以安装固定 tag：
 
 ```sh
-dsh plugin --profile web add -w github:toolclub/dsh-agent-team-gui#v1.1.1
+dsh plugin --profile web add -w github:toolclub/dsh-agent-team-gui#v1.2.0
 dsh --profile web
 ```
 
@@ -345,7 +346,7 @@ dsh plugin --profile web add -w .
 ```sh
 mkdir -p dist
 pnpm pack --pack-destination dist
-dsh plugin --profile web add -w ./dist/dsh-agent-team-gui-1.1.1.tgz
+dsh plugin --profile web add -w ./dist/dsh-agent-team-gui-1.2.0.tgz
 ```
 
 包检查会验证运行时和声明闭包、示例、治理文件、截图、source map、外部依赖声明、绝对路径、
@@ -355,7 +356,7 @@ dsh plugin --profile web add -w ./dist/dsh-agent-team-gui-1.1.1.tgz
 
 可以在 DeepSeek Harness 中直接发送这一句话：
 
-> 按照 https://github.com/toolclub/dsh-agent-team-gui 的安装说明，把 v1.1.1 预编译发布包
+> 按照 https://github.com/toolclub/dsh-agent-team-gui 的安装说明，把 v1.2.0 预编译发布包
 > 安装到 Web profile；重启 Web，验证组合配置，并汇报实际安装的插件和 DSH 版本。
 
 ## 模型工具和公开 Service
@@ -387,9 +388,18 @@ dsh plugin --profile web add -w ./dist/dsh-agent-team-gui-1.1.1.tgz
 `chainTruncated` / `omittedHandoffs` 明示缩减或省略，完整输出仍保存在运行中心。
 审核阶段遵循审核成员设置的 `maxTokens`；只有未设置时才默认使用 2,048。
 
-`retry-once` 与运行中心重试会重放现有任务或计划，目前没有自动处理结构性失败的重新规划。
-需要修改任务说明时，请发送一条包含更明确分工的新用户消息；切换为 `model-tool` 也不会
-解除同一消息的派单次数限制。调用参数在受理前被校验拒绝时，不会占用本轮派单机会。
+`retry-once` 会先分析失败原因：明确的余额/额度耗尽、取消或已配置的预算耗尽会停止恢复。
+系统诊断角色使用主 Agent 的模型路由，无工具权限，分析失败证据、已有进展和不确定性。
+仅有证据支持的临时故障会原地有限重试；任务范围等结构性问题交给主 Agent 决定修订方案。
+
+失败或部分成功的本轮运行结束后，主 Agent 可以调用 `continue_squad_run`，引用原运行 ID
+和执行链版本继续派工。第一版每条执行链**最多继续一次**，共用原配置的软 Token 预算。
+独立成功任务复用，受影响的下游重新执行；原计划、失败证据和后续结果分别保存。
+重复提交返回已受理结果，改写任务文本不会重置次数；同一消息的首次派工仍只允许一次。
+运行中心的手动重试仍是用户主动发起的独立计划重放。
+
+当前保留“一个已有成员对应一个任务节点”，可把剩余任务写成有序步骤，暂不支持同一成员
+拆出多个独立节点或更换整支小队。详细边界见[执行链与失败恢复](docs/execution-chains.md)。
 
 DSH 0.1.5 下，deny 名称按全局工具注册表筛选，局部 allow 列表原样保留；被标记的进程内
 小队成员还有执行拦截，阻止已识别的委派工具及成员显式禁止的工具。DSH 尚无通用委派能力

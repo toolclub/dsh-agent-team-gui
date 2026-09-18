@@ -287,6 +287,14 @@ export function isRunView(value: unknown): value is RunView {
   if (run.quality !== undefined && !isRunQuality(run.quality)) return false
   if (run.qualityProgress !== undefined && !isQualityProgress(run.qualityProgress)) return false
   if (run.liveUsage !== undefined && !isLiveUsage(run.liveUsage)) return false
+  if (run.chain !== undefined) {
+    const chain = run.chain as Record<string, unknown> | null
+    if (chain === null || typeof chain !== 'object' || typeof chain.id !== 'string'
+      || !Number.isInteger(chain.revision) || Number(chain.revision) < 0
+      || !Number.isInteger(chain.maxContinuations) || Number(chain.maxContinuations) < 0
+      || !isUsage(chain.usageBeforeRun) || !isOptionalNumber(chain.tokenBudget)
+      || !isOptionalString(chain.continuationOf) || !isOptionalString(chain.reason) || !isOptionalString(chain.progressReview)) return false
+  }
   return true
 }
 
@@ -301,6 +309,26 @@ function isRunMember(value: unknown): boolean {
     && isOptionalEnum(member.phase, ['member', 'quality', 'repair'])
     && (member.usage === undefined || isUsage(member.usage))
     && (member.usageSamples === undefined || isUsageSamples(member.usageSamples))
+    && (member.recovery === undefined || isRecovery(member.recovery))
+    && isOptionalString(member.reusedFrom)
+}
+
+function isRecovery(value: unknown): boolean {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
+  const recovery = value as Record<string, unknown>
+  if (!isStringFields(recovery, ['state', 'provider', 'model', 'originalTask'])
+    || !['diagnosing', 'completed', 'failed', 'skipped'].includes(String(recovery.state))
+    || typeof recovery.attempted !== 'boolean' || !isOptionalString(recovery.error) || !isOptionalString(recovery.retryTask)
+    || (recovery.usage !== undefined && !isUsage(recovery.usage))) return false
+  const first = recovery.firstAttempt as Record<string, unknown> | undefined
+  if (first === undefined || first === null || typeof first.status !== 'string' || !isOptionalString(first.error) || !isOutput(first.output)) return false
+  if (recovery.decision === undefined) return true
+  const decision = recovery.decision as Record<string, unknown> | null
+  return decision !== null && isStringFields(decision, ['action', 'cause', 'confidence', 'reason', 'progress', 'nextTask', 'uncertainty'])
+    && ['retry', 'revise', 'stop'].includes(String(decision.action))
+    && ['transient', 'task-scope', 'assignment', 'missing-context', 'tooling', 'unknown'].includes(String(decision.cause))
+    && ['supported', 'limited', 'insufficient'].includes(String(decision.confidence))
+    && Array.isArray(decision.evidence) && decision.evidence.every(item => typeof item === 'string')
 }
 
 function isUsageSamples(value: unknown): boolean {
@@ -314,7 +342,7 @@ function isUsageSamples(value: unknown): boolean {
 function isRunPlan(value: unknown): boolean {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
   const plan = value as Record<string, unknown>
-  return typeof plan.summary === 'string' && ['main-agent', 'squad-leader', 'deterministic-fallback'].includes(String(plan.planner))
+  return typeof plan.summary === 'string' && ['main-agent', 'squad-leader', 'deterministic-fallback', 'lead-continuation'].includes(String(plan.planner))
     && isOptionalEnum(plan.decision, ['run', 'skip']) && isOptionalString(plan.reason)
     && isOptionalString(plan.plannerProvider) && isOptionalString(plan.plannerModel)
     && isOptionalString(plan.warning)

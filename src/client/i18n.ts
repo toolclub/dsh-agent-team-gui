@@ -15,6 +15,11 @@ export interface LocaleService {
 }
 
 const zh = {
+  executionChain: '执行链', chainRevision: '继续次数', chainUsage: '执行链累计已报告 Token', reusedResult: '复用已有成果，未再次执行', chainPrevious: '基于运行',
+  recoveryTitle: '系统重试诊断', recoveryDiagnosing: '正在分析失败原因与已有进展…', recoveryComplete: '诊断完成', recoveryStopped: '未继续重试',
+  recoveryRevise: '建议主 Agent 修正剩余任务', recoveryRetry: '临时故障，可重试', recoveryStop: '停止并交回负责人',
+  evidenceSupported: '有证据支持', evidenceLimited: '证据有限', evidenceInsufficient: '证据不足', recoveryProgress: '已有进展（需验证）', recoveryUncertainty: '不确定因素',
+  recoveryOriginal: '原任务与首次失败', recoveryRemaining: '第二次执行的任务',
   teams: '小队', members: '成员库', recipes: '配方与数据', runs: '小队运行', insights: '洞察',
   settingsIntro: '创建可复用的小队、成员与安全的执行策略。基础设置保持简单，高级能力按需展开。',
   refresh: '刷新', retry: '重试', save: '保存', saving: '正在保存…', cancel: '取消', discard: '放弃修改', edit: '编辑',
@@ -30,7 +35,7 @@ const zh = {
   executionMode: '执行方式', inheritPluginDefault: '继承插件默认', inheritCurrent: '继承（当前为 {value}）', fixedOrderSerial: '固定顺序（串行）', legacyPlanningFull: '保持旧默认（完整对话）', serial: '串行', parallel: '并行', contextMode: '上下文模式', spawn: '独立上下文', fork: '继承对话', chain: '串行传递',
   activationMode: '触发策略', always: '每次都运行', smart: '智能判断', manual: '仅手动触发', memberSelection: '成员选择', allMembers: '全部成员', adaptive: '按任务选择',
   responseMode: '响应方式', foreground: '前台完成后汇总', background: '后台运行', planningContext: '规划上下文', current: '仅当前请求', recent: '最近对话', full: '完整对话',
-  plannerMaxTokens: '规划 Token 上限', teamLeader: '备用规划成员', noLeader: '自动选择', failurePolicy: '失败处理', continue: '继续其他成员', stop: '立即停止', retryOnce: '使用回退模型重试一次',
+  plannerMaxTokens: '规划 Token 上限', teamLeader: '备用规划成员', noLeader: '自动选择', failurePolicy: '失败处理', continue: '继续其他成员', stop: '立即停止', retryOnce: '诊断后最多重试一次',
   maxConcurrency: '最大并发', memberTimeout: '成员超时（毫秒）', tokenBudget: '小队 Token 软预算', handoffSummaryLimit: '成员交接摘要上限（字符）', handoffSummaryHint: '留空使用默认 16,000。完整原始输出仍保存在运行中心；依赖与主模型提示词另有聚合边界。',
   qualityGate: '审核返工闭环', qualityGateHint: '审核不通过时，只让指定修复成员返工，并限制为最多两轮。', enableQuality: '启用质量门', reviewer: '审核成员', repairOwner: '修复成员', maxRounds: '最多返工轮数', criteria: '审核标准',
   memberName: '成员名称', rolePrompt: '角色提示词', provider: '提供方', model: '模型', maxTokens: '输出 Token 上限', primaryRoute: '主模型', fallbackRoute: '回退模型', allowTools: '允许工具', denyTools: '禁止工具',
@@ -39,7 +44,7 @@ const zh = {
   remoteOverwriteConfirm: '保存期间检测到远端配置已变化。仍要用当前编辑覆盖远端版本吗？',
   deleteMemberAffected: '删除成员“{name}”会同时从这些小队移除：{names}。继续吗？', deleteMemberBlocked: '请先调整这些小队再删除成员：{names}。它是唯一成员或质量门负责人。', deleteSquadAffected: '删除小队“{name}”会永久删除其版本历史，并清除关联的会话选择、下一条选择和项目默认。继续吗？',
   required: '此字段不能为空。', chooseMemberError: '至少选择一名成员。', nameLength: '名称不能超过 120 个字符。', promptLength: '角色提示词不能超过 50,000 个字符。', longTextLength: '此说明不能超过 20,000 个字符。', memberCountError: '小队最多包含 32 名成员。', routeLength: '提供方和模型 ID 最多 200 个字符。', toolCountError: '允许和禁止列表各最多 256 个工具。', toolNameLengthError: '每个工具名最多 200 个字符。', positiveInteger: '请输入正整数。', agentTokenRange: '输出上限必须为 1–1,000,000 Token。', concurrencyRange: '最大并发必须为 1–32。', timeoutRange: '超时必须为 1,000–3,600,000 毫秒。', plannerRange: '规划上限必须为 256–8192 Token。', budgetRange: '小队预算必须为 1–100,000,000 Token。', handoffSummaryRange: '交接摘要上限必须为 1,000–32,000 个字符。',
-  chainParallelConflict: 'Chain 上下文需要串行执行。', retryFallbackWarning: '选择回退重试时，所有成员都应配置回退模型。', fallbackPairError: '回退提供方和模型必须同时选择。', toolConflictError: '同一工具不能同时允许和禁止。', unknownToolWarning: '部分工具不在当前快捷目录中；它们可能来自对话 preset。可以保存，实际运行会按父对话 scope 验证。', qualityMembersError: '审核和修复成员必须属于当前小队。', qualityDistinctError: '审核和修复成员不能是同一个。',
+  chainParallelConflict: 'Chain 上下文需要串行执行。', retryFallbackWarning: '未配置回退模型的成员将使用原模型重试；结构性失败交回主 Agent。', fallbackPairError: '回退提供方和模型必须同时选择。', toolConflictError: '同一工具不能同时允许和禁止。', unknownToolWarning: '部分工具不在当前快捷目录中；它们可能来自对话 preset。可以保存，实际运行会按父对话 scope 验证。', qualityMembersError: '审核和修复成员必须属于当前小队。', qualityDistinctError: '审核和修复成员不能是同一个。',
   templates: '快速模板', templateHint: '使用已配置模型创建可继续编辑的小队。', development: '全栈开发', reviewTeam: '并行审查', productTeam: '产品设计',
   configureModels: '请先在设置的“模型”中配置至少一个模型。', templateCreated: '已创建“{name}”，可以继续调整成员和策略。', copyName: '{name} 副本', invalidJson: 'JSON 格式无效。',
   versions: '版本历史', restorePreview: '预览恢复', confirmRestore: '确认恢复此版本', restoreMembers: '将恢复 {count} 个成员快照', restoreAffectedTeams: '共享成员会同时改变这些小队：{names}', staleRestorePreview: '定义已发生变化，恢复预览已经失效。请重新预览这个版本。', diagnose: '检查配置', diagnosticsPassed: '小队检查通过。', diagnosticsFailed: '小队检查未通过。',
@@ -66,6 +71,11 @@ const zh = {
 } as const
 
 const en: Record<keyof typeof zh, string> = {
+  executionChain: 'Execution chain', chainRevision: 'Continuations', chainUsage: 'Chain reported tokens', reusedResult: 'Reused result; not executed again', chainPrevious: 'Continues run',
+  recoveryTitle: 'System retry diagnosis', recoveryDiagnosing: 'Analyzing failure and existing progress…', recoveryComplete: 'Diagnosis complete', recoveryStopped: 'Retry not started',
+  recoveryRevise: 'Recommend revised remaining work to lead', recoveryRetry: 'Transient failure: retry', recoveryStop: 'Stop and return to lead',
+  evidenceSupported: 'Evidence supported', evidenceLimited: 'Limited evidence', evidenceInsufficient: 'Insufficient evidence', recoveryProgress: 'Progress to verify', recoveryUncertainty: 'Uncertainty',
+  recoveryOriginal: 'Original task and first failure', recoveryRemaining: 'Second-attempt assignment',
   teams: 'Teams', members: 'Member library', recipes: 'Recipes & data', runs: 'Team runs', insights: 'Insights',
   settingsIntro: 'Build reusable teams, members, and safe execution policies. Basics stay simple; advanced controls expand on demand.',
   refresh: 'Refresh', retry: 'Retry', save: 'Save', saving: 'Saving…', cancel: 'Cancel', discard: 'Discard changes', edit: 'Edit',
@@ -81,7 +91,7 @@ const en: Record<keyof typeof zh, string> = {
   executionMode: 'Execution', inheritPluginDefault: 'Inherit plugin default', inheritCurrent: 'Inherit (currently {value})', fixedOrderSerial: 'Fixed order (serial)', legacyPlanningFull: 'Keep legacy default (full conversation)', serial: 'Serial', parallel: 'Parallel', contextMode: 'Context', spawn: 'Independent', fork: 'Inherit conversation', chain: 'Pass results serially',
   activationMode: 'Activation', always: 'Run every time', smart: 'Smart decision', manual: 'Manual only', memberSelection: 'Member selection', allMembers: 'All members', adaptive: 'Task-specific subset',
   responseMode: 'Response', foreground: 'Finish before synthesis', background: 'Run in background', planningContext: 'Planning context', current: 'Current request only', recent: 'Recent conversation', full: 'Full conversation',
-  plannerMaxTokens: 'Planner token limit', teamLeader: 'Fallback planner', noLeader: 'Auto-select', failurePolicy: 'On failure', continue: 'Continue other members', stop: 'Stop immediately', retryOnce: 'Retry once with fallback',
+  plannerMaxTokens: 'Planner token limit', teamLeader: 'Fallback planner', noLeader: 'Auto-select', failurePolicy: 'On failure', continue: 'Continue other members', stop: 'Stop immediately', retryOnce: 'Diagnose, then retry at most once',
   maxConcurrency: 'Max concurrency', memberTimeout: 'Member timeout (ms)', tokenBudget: 'Team soft token budget', handoffSummaryLimit: 'Member handoff summary limit (characters)', handoffSummaryHint: 'Leave blank for the 16,000 default. Complete raw output remains in Run Center; dependency and lead prompts keep separate aggregate bounds.',
   qualityGate: 'Review and repair loop', qualityGateHint: 'If review fails, only the chosen repair owner reruns, for at most two bounded rounds.', enableQuality: 'Enable quality gate', reviewer: 'Reviewer', repairOwner: 'Repair owner', maxRounds: 'Maximum repair rounds', criteria: 'Review criteria',
   memberName: 'Member name', rolePrompt: 'Role prompt', provider: 'Provider', model: 'Model', maxTokens: 'Output token limit', primaryRoute: 'Primary model', fallbackRoute: 'Fallback model', allowTools: 'Allowed tools', denyTools: 'Denied tools',
@@ -90,7 +100,7 @@ const en: Record<keyof typeof zh, string> = {
   remoteOverwriteConfirm: 'The stored configuration changed while you were editing. Overwrite that newer version with your current draft?',
   deleteMemberAffected: 'Deleting “{name}” also removes it from these teams: {names}. Continue?', deleteMemberBlocked: 'Adjust these teams before deleting the member: {names}. It is the only member or owns the quality gate.', deleteSquadAffected: 'Deleting team “{name}” permanently deletes its version history and clears linked session choices, next-message choices, and project defaults. Continue?',
   required: 'This field is required.', chooseMemberError: 'Select at least one member.', nameLength: 'Names must be 120 characters or fewer.', promptLength: 'Role prompts must be 50,000 characters or fewer.', longTextLength: 'This description must be 20,000 characters or fewer.', memberCountError: 'A team can contain at most 32 members.', routeLength: 'Provider and model IDs must be 200 characters or fewer.', toolCountError: 'Allow and deny lists can each contain at most 256 tools.', toolNameLengthError: 'Each tool name must be 200 characters or fewer.', positiveInteger: 'Enter a positive integer.', agentTokenRange: 'Output limit must be between 1 and 1,000,000 tokens.', concurrencyRange: 'Concurrency must be between 1 and 32.', timeoutRange: 'Timeout must be between 1,000 and 3,600,000 ms.', plannerRange: 'Planner limit must be 256–8,192 tokens.', budgetRange: 'Team budget must be between 1 and 100,000,000 tokens.', handoffSummaryRange: 'Handoff summary limit must be between 1,000 and 32,000 characters.',
-  chainParallelConflict: 'Chain context requires serial execution.', retryFallbackWarning: 'Every member should have a fallback model when retry-once is selected.', fallbackPairError: 'Fallback provider and model must be selected together.', toolConflictError: 'A tool cannot be both allowed and denied.', unknownToolWarning: 'Some tools are outside this shortcut catalog and may come from a conversation preset. Saving is allowed; dispatch validates the actual parent scope.', qualityMembersError: 'Reviewer and repair owner must belong to this team.', qualityDistinctError: 'Reviewer and repair owner must be different members.',
+  chainParallelConflict: 'Chain context requires serial execution.', retryFallbackWarning: 'Without a fallback route, transient retries use the original model; structural failures return to the lead.', fallbackPairError: 'Fallback provider and model must be selected together.', toolConflictError: 'A tool cannot be both allowed and denied.', unknownToolWarning: 'Some tools are outside this shortcut catalog and may come from a conversation preset. Saving is allowed; dispatch validates the actual parent scope.', qualityMembersError: 'Reviewer and repair owner must belong to this team.', qualityDistinctError: 'Reviewer and repair owner must be different members.',
   templates: 'Quick templates', templateHint: 'Create an editable team using your configured model routes.', development: 'Full-stack delivery', reviewTeam: 'Parallel review', productTeam: 'Product design',
   configureModels: 'Configure at least one model in Settings → Models first.', templateCreated: 'Created “{name}”. You can keep adjusting members and policies.', copyName: '{name} Copy', invalidJson: 'Invalid JSON.',
   versions: 'Version history', restorePreview: 'Preview restore', confirmRestore: 'Restore this version', restoreMembers: 'Will restore {count} member snapshots', restoreAffectedTeams: 'Shared members will also change these teams: {names}', staleRestorePreview: 'Definitions changed, so this restore preview expired. Preview this version again.', diagnose: 'Check configuration', diagnosticsPassed: 'Team checks passed.', diagnosticsFailed: 'Team checks failed.',

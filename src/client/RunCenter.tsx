@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } fr
 import type { InjectFace, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-client-ui-session/client'
-import type { InsightsBucket, InsightsView, QualityMemberView, QualityResultView, RunMemberStatus, RunView, TokenUsageView } from './contracts.ts'
+import type { InsightsBucket, InsightsView, QualityMemberView, QualityResultView, RecoveryView, RunMemberStatus, RunView, TokenUsageView } from './contracts.ts'
 import { EMPTY_USAGE } from './contracts.ts'
 import { AgentTeamController, errorText } from './controller.ts'
 import { useI18n, type Translate } from './i18n.ts'
@@ -116,7 +116,8 @@ function RunCard({ run, open, busy, locale, t, onToggle, onCancel, onRetry, onEx
       {run.qualityProgress !== undefined && <QualityProgress run={run} t={t} />}
       <UsagePanel usage={displayUsage} members={run.members} live={isLive(run.status)} coverage={coverage} {...(plannerUsage === undefined ? {} : { plannerUsage })} {...(reviewUsage === undefined ? {} : { reviewUsage })} {...(repairUsage === undefined ? {} : { repairUsage })} {...(run.quality === undefined ? {} : { quality: run.quality })} t={t} />
       {run.members.some(member => member.status === 'completed' && member.stopReason === 'error') && <div className="atg-warning" role="status">{t('protocolDeliveryWarning')}</div>}
-      <section className="atg-run-members" aria-label={t('members')}>{run.members.map(member => <details key={`${member.agentId}:${member.phase ?? 'member'}`} className={`atg-run-member status-${member.status}`}><summary><span className={`atg-status-dot status-${member.status}`} /><span><strong>{member.agentName}</strong><small>{member.provider} / {member.model}{member.phase !== undefined ? ` · ${t(member.phase === 'quality' ? 'phaseQuality' : member.phase === 'repair' ? 'phaseRepair' : 'phaseMember')}` : ''}</small></span><span>{memberStatusLabel(member.status, t)}</span><span>{member.usage === undefined ? (member.status === 'running' ? t('metering') : '—') : `${formatTokens(member.usage.totalTokens)} ${t('tokens')}`}</span><span>{[member.attempts > 1 ? `×${member.attempts}` : '', member.usageSamples === undefined ? '' : t('sampleCoverage', member.usageSamples)].filter(Boolean).join(' · ')}</span></summary><div className="atg-member-output">{member.error !== undefined && <div className="atg-alert">{member.error}</div>}<pre>{member.output.map(block => block.text ?? '').filter(Boolean).join('\n') || '—'}</pre><div className="atg-member-actions"><button type="button" className="atg-button ghost" disabled={busy !== null || isLive(run.status)} onClick={() => { onRetry(run.id, member.agentId) }}>{t('retryMember')}</button></div></div></details>)}</section>
+      {run.chain !== undefined && <section aria-label={t('executionChain')}><strong>{t('executionChain')}</strong><p>{run.chain.id} · {t('chainRevision')}: {run.chain.revision}/{run.chain.maxContinuations}</p><p>{t('chainUsage')}: {run.chain.usageBeforeRun.providerReported || displayUsage.providerReported ? formatTokens(run.chain.usageBeforeRun.totalTokens + displayUsage.totalTokens) : t('usageUnavailable')}{run.chain.tokenBudget === undefined ? '' : ` / ${formatTokens(run.chain.tokenBudget)}`}</p>{run.chain.continuationOf !== undefined && <p>{t('chainPrevious')}: {run.chain.continuationOf}</p>}{run.chain.reason !== undefined && <p>{run.chain.reason}</p>}</section>}
+      <section className="atg-run-members" aria-label={t('members')}>{run.members.map(member => <details key={`${member.agentId}:${member.phase ?? 'member'}`} className={`atg-run-member status-${member.status}`}><summary><span className={`atg-status-dot status-${member.status}`} /><span><strong>{member.agentName}</strong><small>{member.provider} / {member.model}{member.phase !== undefined ? ` · ${t(member.phase === 'quality' ? 'phaseQuality' : member.phase === 'repair' ? 'phaseRepair' : 'phaseMember')}` : ''}</small></span><span>{memberStatusLabel(member.status, t)}</span><span>{member.usage === undefined ? (member.status === 'running' ? t('metering') : '—') : `${formatTokens(member.usage.totalTokens)} ${t('tokens')}`}</span><span>{[member.attempts > 1 ? `×${member.attempts}` : '', member.usageSamples === undefined ? '' : t('sampleCoverage', member.usageSamples)].filter(Boolean).join(' · ')}</span></summary><div className="atg-member-output">{member.reusedFrom !== undefined && <p>{t('reusedResult')}: {member.reusedFrom}</p>}{member.error !== undefined && <div className="atg-alert">{member.error}</div>}{member.recovery !== undefined && <RecoveryDetails recovery={member.recovery} t={t} />}<pre>{member.output.map(block => block.text ?? '').filter(Boolean).join('\n') || '—'}</pre><div className="atg-member-actions"><button type="button" className="atg-button ghost" disabled={busy !== null || isLive(run.status)} onClick={() => { onRetry(run.id, member.agentId) }}>{t('retryMember')}</button></div></div></details>)}</section>
       {run.quality !== undefined && <QualityTimeline quality={run.quality} t={t} />}
       <div className="atg-synthesis"><span aria-hidden="true">◆</span><div><strong>{t('handoffToLead')}</strong><small>{isLive(run.status) || run.phase === 'synthesis' ? t('handoffWaiting') : run.status === 'completed' || run.status === 'partial' ? t('handoffReady') : t(statusKey(run.status))}</small></div></div>
       <div className="atg-actions">{isLive(run.status) && <button type="button" className="atg-button danger" disabled={busy !== null} onClick={() => { onCancel(run.id) }}>{t('stopRun')}</button>}<button type="button" className="atg-button ghost" disabled={busy !== null || isLive(run.status)} onClick={() => { onRetry(run.id) }}>{t('retryRun')}</button><button type="button" className="atg-button ghost" disabled={busy !== null} onClick={() => { onExport(run.id) }}>{t('exportRun')}</button></div>
@@ -192,6 +193,25 @@ function InsightGroup({ title, rows, t }: { title: string; rows: InsightsBucket[
 }
 
 function TokenCell({ label, value }: { label: string; value: number | string }): ReactNode { return <div><strong>{typeof value === 'number' ? formatTokens(value) : value}</strong><small>{label}</small></div> }
+function RecoveryDetails({ recovery, t }: { recovery: RecoveryView; t: Translate }): ReactNode {
+  const decision = recovery.decision
+  return <section aria-label={t('recoveryTitle')}>
+    <h4>{t('recoveryTitle')}</h4>
+    <p>{t(recovery.state === 'diagnosing' ? 'recoveryDiagnosing' : recovery.state === 'completed' ? 'recoveryComplete' : 'recoveryStopped')}</p>
+    {recovery.error !== undefined && <p>{recovery.error}</p>}
+    {decision !== undefined && <>
+      <p><strong>{t(decision.action === 'revise' ? 'recoveryRevise' : decision.action === 'retry' ? 'recoveryRetry' : 'recoveryStop')}</strong> · {t(decision.confidence === 'supported' ? 'evidenceSupported' : decision.confidence === 'limited' ? 'evidenceLimited' : 'evidenceInsufficient')}</p>
+      <p>{decision.reason}</p>
+      <ul>{decision.evidence.map((item, index) => <li key={index}>{item}</li>)}</ul>
+      {decision.progress !== '' && <p>{t('recoveryProgress')}: {decision.progress}</p>}
+      {decision.uncertainty !== '' && <p>{t('recoveryUncertainty')}: {decision.uncertainty}</p>}
+    </>}
+    <small>{recovery.provider} / {recovery.model} · {recovery.usage === undefined ? t('metering') : `${formatTokens(recovery.usage.totalTokens)} ${t('tokens')}`}</small>
+    <details><summary>{t('recoveryOriginal')}</summary><pre>{recovery.originalTask}</pre><p>{recovery.firstAttempt.error}</p><pre>{recovery.firstAttempt.output.map(block => block.text ?? '').join('\n')}</pre></details>
+    {recovery.retryTask !== undefined && <details><summary>{t('recoveryRemaining')}</summary><pre>{recovery.retryTask}</pre></details>}
+  </section>
+}
+
 function usageValue(usage: TokenUsageView | undefined, pending: string): number | string {
   if (usage === undefined) return pending
   if (usage.providerReported) return usage.totalTokens

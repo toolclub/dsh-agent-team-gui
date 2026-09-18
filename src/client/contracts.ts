@@ -1,6 +1,6 @@
 /** Browser-side mirror of the authenticated RPC v5 contract. No provider credentials cross this boundary. */
 
-export const AGENT_TEAM_RPC_API_VERSION = 5
+export const AGENT_TEAM_RPC_API_VERSION = 6
 
 export type ActivationMode = 'always' | 'smart' | 'manual'
 export type MemberSelectionMode = 'all' | 'adaptive'
@@ -124,6 +124,8 @@ export type RunMemberStatus = 'pending' | 'running' | 'completed' | 'failed' | '
 export type RunPhase = 'queued' | 'planning' | 'members' | 'quality-review' | 'quality-repair' | 'synthesis' | 'settled'
 
 export interface RunMemberView {
+  reusedFrom?: string
+  recovery?: RecoveryView
   agentId: string
   agentName: string
   provider: string
@@ -143,6 +145,28 @@ export interface RunMemberView {
   phase?: 'member' | 'quality' | 'repair'
 }
 
+export interface RecoveryView {
+  state: 'diagnosing' | 'completed' | 'failed' | 'skipped'
+  attempted: boolean
+  provider: string
+  model: string
+  error?: string
+  usage?: TokenUsageView
+  originalTask: string
+  retryTask?: string
+  firstAttempt: { status: string; error?: string; output: Array<{ type?: string; text?: string }> }
+  decision?: {
+    action: 'retry' | 'revise' | 'stop'
+    cause: 'transient' | 'task-scope' | 'assignment' | 'missing-context' | 'tooling' | 'unknown'
+    confidence: 'supported' | 'limited' | 'insufficient'
+    reason: string
+    evidence: string[]
+    progress: string
+    nextTask: string
+    uncertainty: string
+  }
+}
+
 export interface PlanAssignmentView {
   agentId: string
   task: string
@@ -155,7 +179,7 @@ export interface PlanView {
   summary: string
   memberOrder: string[]
   assignments: PlanAssignmentView[]
-  planner: 'main-agent' | 'squad-leader' | 'deterministic-fallback'
+  planner: 'main-agent' | 'squad-leader' | 'deterministic-fallback' | 'lead-continuation'
   plannerProvider?: string
   plannerModel?: string
   usage?: TokenUsageView
@@ -188,6 +212,16 @@ export interface QualityResultView {
 }
 
 export interface RunView {
+  chain?: {
+    id: string
+    revision: number
+    maxContinuations: number
+    usageBeforeRun: TokenUsageView
+    tokenBudget?: number
+    continuationOf?: string
+    reason?: string
+    progressReview?: string
+  }
   id: string
   sessionId: string
   squadId?: string

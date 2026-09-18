@@ -62,7 +62,7 @@ jobs:
           printf 'commit=%s\n' "$resolved_commit" >> "$GITHUB_OUTPUT"
       - run: pnpm run preflight
         env:
-          API_VERSION: 5
+          API_VERSION: 6
           EXPECTED_VERSION: ${{ steps.release.outputs.version }}
           EXPECTED_TAG: v${{ steps.release.outputs.version }}
           RELEASE_REQUIRE_CLEAN: 1
@@ -70,7 +70,7 @@ jobs:
       - name: Verify exact GitHub revision
         run: pnpm run smoke:install
         env:
-          API_VERSION: 5
+          API_VERSION: 6
           PLUGIN_SPEC: github:toolclub/dsh-agent-team-gui#${{ steps.release.outputs.commit }}
       - name: Build release artifact
         shell: bash
@@ -93,7 +93,7 @@ jobs:
           shopt -s nullglob
           tarballs=(dist/*.tgz)
           [[ ${#tarballs[@]} -eq 1 ]] || { printf 'Expected exactly one release tarball\n' >&2; exit 1; }
-          PLUGIN_TARBALL="${tarballs[0]}" API_VERSION=5 pnpm run smoke:install
+          PLUGIN_TARBALL="${tarballs[0]}" API_VERSION=6 pnpm run smoke:install
       - run: pnpm exec playwright install --with-deps chromium
       - name: Browser smoke exact release artifact
         shell: bash
@@ -101,7 +101,7 @@ jobs:
           shopt -s nullglob
           tarballs=(dist/*.tgz)
           [[ ${#tarballs[@]} -eq 1 ]] || { printf 'Expected exactly one release tarball\n' >&2; exit 1; }
-          PLUGIN_TARBALL="${tarballs[0]}" API_VERSION=5 SMOKE_SCREENSHOT_DIR=.artifacts/browser-smoke pnpm run smoke:browser
+          PLUGIN_TARBALL="${tarballs[0]}" API_VERSION=6 SMOKE_SCREENSHOT_DIR=.artifacts/browser-smoke pnpm run smoke:browser
       - name: Checksum release artifact
         shell: bash
         run: |

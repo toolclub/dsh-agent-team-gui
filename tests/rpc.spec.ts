@@ -42,7 +42,7 @@ describe('agent team RPC handler', () => {
     const result = await call<SnapshotValue>(handler, 'snapshot', {}, signal())
     expect(result.ok).toBe(true)
     if (!result.ok) return
-    expect(result.value.apiVersion).toBe(5)
+    expect(result.value.apiVersion).toBe(6)
     expect(result.value.capabilities).toMatchObject({ dags: true, recipes: true, remoteRecipeFetch: false })
     expect(result.value.agents).toHaveLength(3)
     expect(result.value.squads).toHaveLength(1)

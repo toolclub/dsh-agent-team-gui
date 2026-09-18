@@ -53,10 +53,10 @@ describe('release engineering contract', () => {
     }
   })
 
-  it('makes API v5 and the hermetic DSH boundary explicit', () => {
+  it('makes API v6 and the hermetic DSH boundary explicit', () => {
     const fixture = readFileSync(join(root, 'scripts/quality/dsh-fixture.mjs'), 'utf8')
     const common = readFileSync(join(root, 'scripts/quality/common.mjs'), 'utf8')
-    expect(common).toContain('DEFAULT_API_VERSION = 5')
+    expect(common).toContain('DEFAULT_API_VERSION = 6')
     expect(fixture).toContain('createHermeticEnvironment(workspace)')
     expect(common).toContain('DSH_HOME: dshHome')
     expect(common).toContain('HOME: userHome')

@@ -52,6 +52,18 @@ export const writerId = AgentId('writer')
 export const reviewerId = AgentId('reviewer')
 export const squadId = SquadId('delivery')
 
+/** Explicit coordinator fixture for tests whose focus is execution-attempt routing/metering. */
+export function successfulDiagnosisRun() {
+  return {
+    id: SessionId('system-diagnosis'), localAgent: undefined, async dispose() {},
+    result: Promise.resolve({ output: [], stopReason: 'completed' as const, structured: {
+      action: 'retry', cause: 'transient', confidence: 'limited', reason: 'Continue the remaining member work.',
+      evidence: ['The previous attempt failed.'], progress: 'Check existing artifacts first.',
+      nextTask: 'Inspect existing artifacts and complete the remaining original requirements in ordered steps.', uncertainty: 'Existing artifacts require verification.',
+    } }),
+  }
+}
+
 export const agent = (name: string, model = name.toLowerCase()): AgentRecord => ({
   name,
   systemPrompt: `You are ${name}.`,

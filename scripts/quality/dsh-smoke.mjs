@@ -70,6 +70,8 @@ try {
   invariant(interrupted.run?.status === 'interrupted', `orphaned run stayed ${interrupted.run?.status ?? 'missing'} after restart`)
   invariant(interrupted.run?.phase === 'settled' && typeof interrupted.run?.endedAt === 'number', 'recovered run has no settled phase/end time')
   invariant(interrupted.run?.members?.[0]?.status === 'interrupted', 'recovered run left its active member running')
+  invariant(interrupted.run?.chain?.id === orphanedRunId && interrupted.run?.chain?.revision === 0, 'execution-chain metadata did not survive restart')
+  invariant(interrupted.run?.members?.[0]?.recovery?.state === 'failed', 'in-flight diagnosis was not reconciled after restart')
   invariant(/restart|stopped/i.test(interrupted.run?.error ?? ''), 'recovered run does not explain why it was interrupted')
   const settledCancel = await fixture.rpc('run/cancel', { id: orphanedRunId })
   invariant(settledCancel.cancelled === false, 'run/cancel falsely reported cancelling an interrupted run')

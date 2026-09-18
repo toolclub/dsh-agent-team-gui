@@ -646,7 +646,7 @@ export class DefinitionApplicationService extends Service {
   }
 
   getEffectiveSessionSquadMode(agent: Agent): SessionSquadModeView | undefined { return this.getEffectiveSessionSquadModeForSession(agent.session, agent.id) }
-  protected isDelegatedAgent(agent: Agent): boolean { return this.isDelegatedSession(agent.session) }
+  protected isDelegatedAgent(agent: Agent): boolean { return agent.options?.agentTeamGuiChild === true || this.isDelegatedSession(agent.session) }
   protected isDelegatedSession(session: Agent['session']): boolean {
     const header = session.header
     return header.origin === 'subagent' || header.parentSession !== undefined || (header.delegationDepth ?? 0) > 0
@@ -719,6 +719,7 @@ export class DefinitionApplicationService extends Service {
       ...(squad.collabNote === undefined || squad.collabNote.length === 0 ? [] : [`Collaboration note: ${squad.collabNote}`]),
       order,
       `Default executionMode: ${executionMode}. Default contextMode: ${contextMode}.`,
+      'A settled failed/partial run may expose continuation.allowed=true. Then review the failure diagnosis and existing artifacts and call continue_squad_run with its sourceRunId/expectedRevision plus revised remaining assignments and a progressReview. This is a bounded continuation of the same goal, not another dispatch_to_squad. Never bypass cancellation, exhausted quota, or continuation limits. Do not change the original acceptance criteria or silently take over worker implementation.',
       ...(guaranteed ? [
         'The host runs this squad before your request and injects one dsh-agent-team-gui notice containing the plan and member results.',
         'Do not call dispatch_to_squad again when that notice is present. Produce a structured retrospective: (1) squad execution summary — what each member did and the outcome, (2) what went well, (3) what did not go well and why, (4) knowledge gap analysis — classify whether underperformance was due to missing repository knowledge, missing user-supplied domain knowledge, scope/planning issues, or tool/execution limitations, (5) concrete improvement recommendations with specific files/presets/settings for progressive disclosure or documentation, and (6) a final verdict on squad effectiveness.',

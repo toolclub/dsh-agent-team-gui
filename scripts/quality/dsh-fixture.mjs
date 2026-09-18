@@ -374,6 +374,10 @@ export class DshWebFixture {
       squadId: seed.squadId,
       squadName: `${seed.marker}-team`,
       task: 'Simulated process interruption for release verification.',
+      chain: {
+        id, revision: 0, maxContinuations: 1,
+        usageBeforeRun: { uncachedInputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0, totalTokens: 0, providerReported: false },
+      },
       executionMode: 'serial',
       contextMode: 'spawn',
       status: 'running',
@@ -404,6 +408,11 @@ export class DshWebFixture {
         attempts: 1,
         startedAt,
         output: [],
+        recovery: {
+          state: 'diagnosing', attempted: true, provider: seed.provider, model: seed.model, startedAt,
+          originalTask: 'Verify the isolated interrupted-run recovery path.',
+          firstAttempt: { status: 'failed', error: 'Simulated first-attempt failure.', output: [{ type: 'text', text: 'Verification had started before interruption.' }] },
+        },
       }],
       usage: {
         uncachedInputTokens: 0,

@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.2.0 — 2026-09-18
+
+- Address #70 with a tool-free system failure coordinator. `retry-once` diagnoses
+  before retrying: supported transient failures may retry once, structural revisions
+  return to the lead, and explicit billing exhaustion stops without another model call.
+- Add `continue_squad_run`: the lead can revise remaining work after a failed/partial
+  run settles, under one execution chain with a maximum of one continuation and the
+  original configured cumulative soft Token budget. Initial message admission remains
+  idempotent; continuation uses a durable successor receipt and plan revision checks.
+- Reuse independent successful results, invalidate affected descendants, preserve
+  original plans/progress and attribute diagnostic usage separately. Enforce session,
+  user-message, cancellation, quota, configuration and dependency boundaries.
+- Show failure diagnosis, chain lineage, cumulative reported usage and reused results
+  in Run Center. Keep one task node per existing member; arbitrary multi-node splitting
+  and quality-only replanning are not included. Manual Run Center retry remains explicit replay.
+- Bump the client/host handshake to v6 for the new continuation plan kind; refresh the
+  browser and restart DSH after upgrading. Existing definitions and old run rows remain readable.
+
 ## 1.1.1 — 2026-09-17
 
 - Fix #66: filter member deny names through the global registry, preserve scoped allows,

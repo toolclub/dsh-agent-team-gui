@@ -6,7 +6,7 @@ import type { SubagentStartRequest } from '@deepseek-ai/dsh-subagent'
 import { AgentTeamError } from '../src/index.ts'
 import { createDispatchToSquadTool } from '../src/tools/dispatch-to-squad.ts'
 import { AgentId, SquadId } from '../src/types.ts'
-import { agent, createService, populate, researcherId, reviewerId, squadId, writerId } from './helpers.ts'
+import { agent, createService, successfulDiagnosisRun, populate, researcherId, reviewerId, squadId, writerId } from './helpers.ts'
 
 describe('AgentTeamService CRUD', () => {
   it('validates model routes and squad references before durable writes', async () => {
@@ -557,6 +557,7 @@ describe('AgentTeamService dispatch', () => {
     let attempt = 0
     const state = createService({
       start: async (_provider, request) => {
+        if (request.agentOptions?.agentTeamGuiDiagnosis) return successfulDiagnosisRun()
         routes.push(request.agentOptions ?? {})
         attempt += 1
         return {

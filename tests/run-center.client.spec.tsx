@@ -50,6 +50,27 @@ function dockProps(controller: AgentTeamController): TeamRunDockProps {
 
 describe('Team Run Center', () => {
   afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
+  it('shows the system diagnosis, first failure and actual revised assignment', async () => {
+    const detail = run('completed')
+    detail.members[0]!.recovery = {
+      state: 'completed', attempted: true, provider: 'main-provider', model: 'main-model', usage: usage(12),
+      originalTask: 'Build API and tests.', retryTask: 'Verify API, then add missing tests.',
+      firstAttempt: { status: 'failed', error: 'max-tokens', output: [{ type: 'text', text: 'API added; tests remain.' }] },
+      decision: { action: 'revise', cause: 'task-scope', confidence: 'limited', reason: 'The attempt did not reach testing.',
+        evidence: ['Output reports tests remain.'], progress: 'API changes need verification.', nextTask: 'Add missing tests.', uncertainty: 'API is unverified.' },
+    }
+    const controller = new AgentTeamController(async <T,>(endpoint: string) => {
+      if (endpoint === 'run/list') return { runs: [detail] } as T
+      if (endpoint === 'run/get') return { run: detail } as T
+      throw new Error(`unexpected ${endpoint}`)
+    })
+    render(<TeamRunCenter {...centerProps(controller)} />)
+    await screen.findByText('Build the release')
+    fireEvent.click(screen.getByRole('button', { name: /Build the release/ }))
+    expect(await screen.findByText('The attempt did not reach testing.')).toBeInTheDocument()
+    expect(screen.getByText('Verify API, then add missing tests.')).toBeInTheDocument()
+    expect(screen.getByText('API added; tests remain.')).toBeInTheDocument()
+  })
   it('fetches detail only on expansion and renders DAG plus four disjoint usage buckets and quality rounds', async () => {
     const calls: Array<[string, unknown]> = []
     const detail = run()
@@ -395,7 +416,7 @@ describe('Team Run Center', () => {
         return (lists === 1 ? { runs: [{ id: 'broken' }] } : { runs: [] }) as T
       }
       if (endpoint === 'snapshot') return {
-        apiVersion: 5, agents: [], squads: [], models: [], tools: [],
+        apiVersion: 6, agents: [], squads: [], models: [], tools: [],
         capabilities: { smartActivation: true, dags: true, qualityGate: true, backgroundRuns: true, recipes: true, remoteRecipeFetch: false, insights: true, reproducibleVersions: true },
         defaults: { executionMode: 'serial', fixedOrderExecutionMode: 'serial', contextMode: 'fork', planningContext: 'full', plannerMaxTokens: 2_048 },
       } as T

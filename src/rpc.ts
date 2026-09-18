@@ -14,7 +14,7 @@ export const AGENT_TEAM_RPC_CHANNEL = '/api'
 /** One exact method on the authenticated shared Connection route. */
 export const AGENT_TEAM_RPC_METHOD = 'agentTeamGui'
 /** Browser/host contract revision. A snapshot handshake prevents mixed-version UIs. */
-export const AGENT_TEAM_RPC_API_VERSION = 5
+export const AGENT_TEAM_RPC_API_VERSION = 6
 
 const emptySchema = z.object({}).strict()
 const idSchema = z.string().min(1)

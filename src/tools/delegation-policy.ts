@@ -4,6 +4,8 @@ declare module '@deepseek-ai/dsh-agent' {
   interface AgentOptions {
     /** Plugin-owned in-process children may not invoke further delegation tools. */
     agentTeamGuiChild?: boolean
+    /** System diagnosis is read-only even for tools added dynamically to a child scope. */
+    agentTeamGuiDiagnosis?: boolean
     /** Preserve explicit denies for scope-local tools that restrict() cannot name. */
     agentTeamGuiDeniedTools?: readonly string[]
   }
@@ -14,7 +16,7 @@ interface ToolShape {
   readonly parameters?: unknown
 }
 
-const DELEGATION_NAMES = new Set(['dispatch_to_squad', 'subagent', 'subagent_fork', 'subagent_spawn', 'workflow'])
+const DELEGATION_NAMES = new Set(['dispatch_to_squad', 'continue_squad_run', 'subagent', 'subagent_fork', 'subagent_spawn', 'workflow'])
 
 /** Recognize official delegation contracts even when optional route controls are added. */
 export function isDelegationTool(tool: ToolShape): boolean {
@@ -35,6 +37,7 @@ export function isDelegationTool(tool: ToolShape): boolean {
 /** Catch scoped/renamed delegation at execution, including nested PTC calls. */
 export function teamChildToolGuard(tools: Pick<ToolRuntime, 'get'>): ToolGuard {
   return execution => {
+    if (execution.agent?.options.agentTeamGuiDiagnosis === true) return 'System recovery diagnosis cannot execute tools.'
     if (execution.agent?.options.agentTeamGuiChild !== true) return undefined
     if (execution.agent.options.agentTeamGuiDeniedTools?.includes(execution.name)) {
       return 'This tool is denied by the configured squad member policy.'
