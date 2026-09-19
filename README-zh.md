@@ -41,15 +41,16 @@ Provider 上报的 Token 用量；下一次继续使用同一套小队配置。
 
 | 插件版本 | DSH 版本 | 升级建议 |
 | --- | --- | --- |
-| **1.2.0** | `>=0.1.5-rc.1 <0.1.6-0` | 推荐版本，增加失败诊断和主 Agent 受控继续派工 |
+| **1.3.0** | `>=0.1.5-rc.1 <0.1.6-0` | 推荐版本，可选择按需派工，并完善模式边界 |
+| 1.2.0 | `>=0.1.5-rc.1 <0.1.6-0` | 失败诊断和主 Agent 受控继续派工 |
 | 1.1.1 | `>=0.1.5-rc.1 <0.1.6-0` | 修复早期工作流问题，自动重试仍复用原任务 |
-| 1.1.0 | `>=0.1.5-rc.1 <0.1.6-0` | 首个 0.1.5 适配版本，建议更新插件到 1.2.0 |
+| 1.1.0 | `>=0.1.5-rc.1 <0.1.6-0` | 首个 0.1.5 适配版本，建议更新插件到 1.3.0 |
 | 1.0.1 | 已验证 `0.1.1-rc.2` | 旧版集成；需要同时升级 DSH 和插件 |
 
 已有导览提供[英文字幕](https://github.com/toolclub/dsh-agent-team-gui/blob/main/docs/promotion/demo-captions.en.srt)
 和[中文字幕](https://github.com/toolclub/dsh-agent-team-gui/blob/main/docs/promotion/demo-captions.zh-CN.srt)，可在支持字幕的播放器中手动加载 SRT；GitHub 不会自动叠加字幕。
 
-从 DSH 0.1.1 升级时，请搭配 **插件 v1.2.0 + DSH 0.1.5**。新版修复了加载时的
+从 DSH 0.1.1 升级时，请搭配 **插件 v1.3.0 + DSH 0.1.5**。新版修复了加载时的
 `source.subscribe` 报错，并适配连接恢复和 Session API；现有小队定义与运行记录继续保留。
 升级后重启 DSH 并刷新浏览器。CLI 可能显示 `0.1.5-rc.1`，内部兼容包实际解析为 `0.1.5-rc.2`。
 
@@ -57,10 +58,10 @@ Provider 上报的 Token 用量；下一次继续使用同一套小队配置。
 `>=22.19.0 <23` 或 `>=24.0.0`（不支持 Node.js 23）、pnpm，以及至少一条已经配置好的
 DSH provider/model 路由。仓库 CI 当前使用 DSH `0.1.5-rc.1`。
 
-直接安装 **v1.2.0 预编译发布包**：
+直接安装 **v1.3.0 预编译发布包**：
 
 ```sh
-dsh plugin --profile web add -w https://github.com/toolclub/dsh-agent-team-gui/releases/download/v1.2.0/dsh-agent-team-gui-1.2.0.tgz
+dsh plugin --profile web add -w https://github.com/toolclub/dsh-agent-team-gui/releases/download/v1.3.0/dsh-agent-team-gui-1.3.0.tgz
 dsh --profile web
 ```
 
@@ -87,10 +88,10 @@ dsh --profile web
 2. 为三名成员把 `your-provider / your-model` 映射为已配置的路由。保持**导入策略 →
    创建副本**，等到**配方校验通过**后，点击**确认导入配方**。到**成员库**核对各自模型，
    可以使用不同模型，也可以先全部使用同一个可用模型。
-3. 在**小队**页选中导入的小队，将**触发策略**设为**每次都运行**、**成员选择**设为
+3. 在**小队**页选中导入的小队，将**小队使用方式**设为**Host 强制派工**、**派工策略**设为**执行已派任务**、**成员选择**设为
    **全部成员**并保存。示例原本使用智能选择，这样调整便于观察完整的首次协作。
 4. 在空临时项目中新建对话，打开输入框旁的小队控件，选择导入的小队，并选中
-   **始终使用小队**。发送下面的任务。
+   **本对话选择小队**。发送下面的任务。
 5. 打开对话的**小队运行**，展开记录查看计划、成员交付和审核；在**洞察**中查看本次
    使用的模型与 Token 计量情况。
 
@@ -115,25 +116,28 @@ dsh --profile web
 ## 编排是怎样工作的
 
 ```mermaid
-flowchart LR
-    U["普通用户消息"] --> M{"对话模式"}
-    M -->|"单人"| L["主 Agent 正常回答"]
-    M -->|"小队 / 继承项目默认"| A{"触发策略"}
-    A -->|"手动"| L
-    A -->|"智能可跳过"| P["有界主模型规划器"]
-    A -->|"始终"| P
-    P --> D["验证过的无环计划"]
-    D --> W1["第一批就绪成员"]
-    W1 --> W2["依赖成员"]
-    W2 --> Q{"可选质量门禁"}
-    Q -->|"通过 / 未配置"| H["有界交接信息"]
-    Q -->|"最多返工 2 次"| R["指定返工负责人"]
-    R --> Q
-    H --> L
-    D -. "实时状态 + 官方 Token" .-> C["运行中心和洞察"]
+flowchart TD
+    U[用户消息] --> M{有效模式与下一条选择}
+    M -->|单人或仅手动| L[主 Agent 直接处理]
+    M -->|按需使用| J{主 Agent 判断协作是否有价值}
+    J -->|不需要| L
+    J -->|缺少信息| A[询问用户]
+    J -->|需要：调用小队工具| D[校验并受理一次首次派工]
+    M -->|Host 强制或下一条 Team| D
+    D --> P[使用已有计划或启动有界规划器]
+    P -->|智能跳过| L
+    P --> W[按依赖执行成员、失败策略和可选质量门]
+    W --> R[持久化结果、诊断和已报告用量]
+    R --> L
+    R -->|主 Agent 复核剩余任务| C[受控继续派工]
+    C -->|复用成功成果、共用预算、最多继续一次| W
 ```
 
-没有固定顺序时，插件会使用当前对话的 provider/model 路由启动一个有界、无工具的规划
+新建小队和内置模板默认“主 Agent 按需使用”；选择小队代表可供使用，简单回答不启动规划器或成员。
+已有配置、导入配置以及旧记录的默认行为保持不变。后台运行在运行中心结算，模型工具派工等待结果。
+[完整流程图与边界说明](docs/on-demand-flow.md)。
+
+真正派工后，没有显式分工/顺序且没有固定顺序时，插件会使用当前对话的 provider/model 路由启动一个有界、无工具的规划
 子任务。它读取所有成员的角色，并返回结构化分工和无环依赖图。规划器不会让第一个成员替代
 整个小队。计划不可用、无效或有环时，会回退到确定性的角色专属任务。
 
@@ -142,9 +146,9 @@ flowchart LR
 
 ### 触发和成员选择
 
-- **始终**：每条有效的顶层用户消息都运行所选小队。
+- **执行已派任务**：已经决定派工后要求执行，不会强迫按需模式为每条消息派工。
 - **智能**：有界规划器可以跳过不适合或太简单的任务。
-- **手动**：普通消息保持单人；可以只给下一条消息使用小队，或者让模型调用工具。
+- **手动**：普通消息不能自动或通过模型工具派工；显式选择下一条 Team，或使用手动运行操作。
 - **全部成员**：每个已配置成员恰好获得一次任务。
 - **自适应**：智能规划选择最小但非空的合适成员子集。
 
@@ -303,7 +307,7 @@ Web bundle 只插入一条唯一 Host row；它复用 Web profile 已有的 stor
 如果希望从已审查的源码构建，可以安装固定 tag：
 
 ```sh
-dsh plugin --profile web add -w github:toolclub/dsh-agent-team-gui#v1.2.0
+dsh plugin --profile web add -w github:toolclub/dsh-agent-team-gui#v1.3.0
 dsh --profile web
 ```
 
@@ -346,7 +350,7 @@ dsh plugin --profile web add -w .
 ```sh
 mkdir -p dist
 pnpm pack --pack-destination dist
-dsh plugin --profile web add -w ./dist/dsh-agent-team-gui-1.2.0.tgz
+dsh plugin --profile web add -w ./dist/dsh-agent-team-gui-1.3.0.tgz
 ```
 
 包检查会验证运行时和声明闭包、示例、治理文件、截图、source map、外部依赖声明、绝对路径、
@@ -356,7 +360,7 @@ dsh plugin --profile web add -w ./dist/dsh-agent-team-gui-1.2.0.tgz
 
 可以在 DeepSeek Harness 中直接发送这一句话：
 
-> 按照 https://github.com/toolclub/dsh-agent-team-gui 的安装说明，把 v1.2.0 预编译发布包
+> 按照 https://github.com/toolclub/dsh-agent-team-gui 的安装说明，把 v1.3.0 预编译发布包
 > 安装到 Web profile；重启 Web，验证组合配置，并汇报实际安装的插件和 DSH 版本。
 
 ## 模型工具和公开 Service

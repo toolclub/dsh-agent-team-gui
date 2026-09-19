@@ -698,17 +698,23 @@ export class DefinitionApplicationService extends Service {
   }
 
   squadModeGuidance(agent: Agent | undefined): string {
-    if (agent === undefined) return ''
+    if (agent === undefined || this.isDelegatedAgent(agent)) return ''
     const mode = this.getEffectiveSessionSquadMode(agent)
     if (mode === undefined) return ''
     const squad = this.squads().get(mode.squadId)
     if (squad === undefined) return ''
     const order = squad.executionOrder === undefined
-      ? 'No fixed member order is configured. The host uses your model route to plan one role-specific assignment and a complete memberOrder for every configured member.'
+      ? 'No fixed member order is configured. If delegation is useful, omit assignments and memberOrder to let the planner select members and build a dependency graph. Explicit assignments bypass that planner and must cover every member with distinct role-specific work.'
       : `Use this fixed serial member order: ${squad.executionOrder.join(' -> ')}. Omit memberOrder entirely when calling dispatch_to_squad; it cannot override this fixed order.`
     const executionMode = squad.executionMode ?? (squad.executionOrder === undefined ? this.config.defaultExecutionMode : 'serial')
     const contextMode = squad.contextMode ?? this.config.defaultContextMode
     const guaranteed = (squad.triggerMode ?? 'guaranteed') === 'guaranteed'
+    const manual = squad.activationMode === 'manual'
+    const capabilities = squad.members.map(id => {
+      const record = this.agents().get(id)
+      if (record === undefined) return `- ${id}: unavailable`
+      return `- ${id}: role=${record.systemPrompt.slice(0, 600)}; allowed tools=${record.toolScope?.allow?.slice(0, 10).join(', ') ?? 'parent tools subject to restrictions'}; denied tools=${record.toolScope?.deny?.slice(0, 10).join(', ') ?? 'none configured'}`
+    }).join('\n').slice(0, 16_000)
     return [
       '<agent_team_squad_mode>',
       `Squad mode is enabled for this conversation. Active squad id: ${mode.squadId}.`,
@@ -719,17 +725,21 @@ export class DefinitionApplicationService extends Service {
       ...(squad.collabNote === undefined || squad.collabNote.length === 0 ? [] : [`Collaboration note: ${squad.collabNote}`]),
       order,
       `Default executionMode: ${executionMode}. Default contextMode: ${contextMode}.`,
+      `Member capabilities (bounded reference for choosing useful delegation):\n${capabilities}`,
+      'An explicit per-message Solo or host-dispatch notice takes precedence over these conversation defaults. Never redispatch a message already handled by the host.',
       'A settled failed/partial run may expose continuation.allowed=true. Then review the failure diagnosis and existing artifacts and call continue_squad_run with its sourceRunId/expectedRevision plus revised remaining assignments and a progressReview. This is a bounded continuation of the same goal, not another dispatch_to_squad. Never bypass cancellation, exhausted quota, or continuation limits. Do not change the original acceptance criteria or silently take over worker implementation.',
-      ...(guaranteed ? [
+      ...(manual ? [
+        'This team is Manual-only. Ordinary messages do not start a squad. Answer directly or ask for missing information; do not call dispatch_to_squad. The user can explicitly choose Force Team next or use a manual Run Center action.',
+      ] : guaranteed ? [
         'The host runs this squad before your request and injects one dsh-agent-team-gui notice containing the plan and member results.',
         'Do not call dispatch_to_squad again when that notice is present. Produce a structured retrospective: (1) squad execution summary — what each member did and the outcome, (2) what went well, (3) what did not go well and why, (4) knowledge gap analysis — classify whether underperformance was due to missing repository knowledge, missing user-supplied domain knowledge, scope/planning issues, or tool/execution limitations, (5) concrete improvement recommendations with specific files/presets/settings for progressive disclosure or documentation, and (6) a final verdict on squad effectiveness.',
       ] : [
-        'For each new ordinary user request, call dispatch_to_squad exactly once before your final answer.',
-        `Pass squadId exactly as "${mode.squadId}" and turn the current user request into a concrete shared task.`,
-        squad.executionOrder === undefined
-          ? 'When there is no fixed order, pass memberOrder as a complete, unique permutation of all member ids; use assignments for member-specific tasks.'
-          : 'Omit memberOrder entirely for this fixed-order squad. Use assignments only to narrow each member\'s task.',
-        'After the tool result, produce a structured retrospective for the user: (1) squad execution summary, (2) what went well, (3) what did not go well and why, (4) knowledge gap analysis with root-cause classification, (5) concrete improvement recommendations for progressive disclosure or documentation, and (6) a final verdict on squad effectiveness. Do not call dispatch_to_squad again for the same user request after receiving its result.',
+        'This team is AVAILABLE ON DEMAND, not mandatory. Decide within your normal reasoning whether delegation adds value. Do not start a planner or workers just to decide whether this team is needed.',
+        'Answer simple arithmetic such as 1+1, short explanations, and straightforward local work directly when you can do so effectively. Ask the user when necessary information is missing. Do not invent extra tasks to keep members busy.',
+        'Use dispatch_to_squad only when distinct member expertise, parallel independent deliverables, or a useful independent review justify its additional latency and Token cost, or the user explicitly requests team execution.',
+        `When you choose to delegate, pass squadId exactly as "${mode.squadId}". Preserve the user goal and define concrete boundaries.`,
+        'Model-initiated dispatch waits for its result; the background setting applies only to host-triggered dispatch. After a direct answer, do not fabricate a team run or give an unnecessary squad retrospective.',
+        'After actual delegation, synthesize the member results and report failures honestly. At most one initial dispatch is admitted per user message. Use the bounded continuation path only when its result says it is allowed; changing wording does not reset admission.',
       ]),
       '</agent_team_squad_mode>',
     ].join('\n')

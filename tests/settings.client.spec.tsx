@@ -42,6 +42,61 @@ beforeEach(() => { vi.stubGlobal('confirm', vi.fn(() => true)) })
 afterEach(() => { vi.useRealTimers() })
 
 describe('TeamSettingsPage', () => {
+  it('persists the usage selector, preserves legacy mode and distinguishes effective background behavior', async () => {
+    let data = catalog({ squads: [{ id: 'team-1', name: 'Delivery', members: ['agent-1'], collabNote: '', responseMode: 'background' }] })
+    const rpc: AgentTeamRpc = async <T,>(endpoint: string, payload: unknown) => {
+      if (endpoint === 'snapshot') return data as T
+      if (endpoint === 'squad/versions') return [] as T
+      if (endpoint === 'squad/update') {
+        const request = payload as { id: string; record: Omit<SquadView, 'id'> }
+        data = { ...data, squads: [{ id: request.id, ...request.record }] }
+        return {} as T
+      }
+      throw new Error(`unexpected ${endpoint}`)
+    }
+    const { controller, user } = await setup(rpc)
+    const view = render(<TeamSettingsPage {...settingsProps(controller)} />)
+    expect(screen.getByLabelText('小队使用方式')).toHaveValue('guaranteed')
+    expect(screen.getByLabelText('响应方式')).toHaveValue('background')
+    await user.selectOptions(screen.getByLabelText('小队使用方式'), 'model-tool')
+    expect(screen.getByLabelText('响应方式')).toHaveValue('foreground')
+    expect(screen.getByLabelText('响应方式')).toBeDisabled()
+    expect(screen.getByText(/简单任务直接完成/)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '保存' }))
+    await waitFor(() => expect(data.squads[0]?.triggerMode).toBe('model-tool'))
+    view.unmount()
+    render(<TeamSettingsPage {...settingsProps(controller)} />)
+    expect(screen.getByLabelText('小队使用方式')).toHaveValue('model-tool')
+    await user.selectOptions(screen.getByLabelText('小队使用方式'), 'guaranteed')
+    expect(screen.getByLabelText('响应方式')).toHaveValue('background')
+    expect(screen.getByLabelText('响应方式')).not.toBeDisabled()
+    await user.click(screen.getByRole('button', { name: '放弃修改' }))
+    expect(screen.getByLabelText('小队使用方式')).toHaveValue('model-tool')
+  })
+
+  it('defaults a newly created team draft to on-demand without changing saved teams', async () => {
+    const { controller, user } = await setup(async <T,>(endpoint: string) => {
+      if (endpoint === 'snapshot') return catalog() as T
+      if (endpoint === 'squad/versions') return [] as T
+      throw new Error(`unexpected ${endpoint}`)
+    })
+    render(<TeamSettingsPage {...settingsProps(controller)} />)
+    expect(screen.getByLabelText('小队使用方式')).toHaveValue('guaranteed')
+    await user.click(screen.getByRole('button', { name: /新建小队/ }))
+    expect(screen.getByLabelText('小队使用方式')).toHaveValue('model-tool')
+    expect(screen.getByLabelText('小队名称')).toHaveValue('')
+    await user.selectOptions(screen.getByLabelText('派工策略'), 'manual')
+    expect(screen.getByText(/普通发送不会启动成员/)).toBeInTheDocument()
+    expect(screen.queryByText(/简单任务直接完成/)).not.toBeInTheDocument()
+    await user.click(screen.getByRole('checkbox', { name: /^固定顺序/ }))
+    expect(screen.getByLabelText('成员选择')).toBeDisabled()
+    expect(screen.getByLabelText('成员选择')).toHaveValue('all')
+    expect(screen.getByText(/固定顺序会直接执行全部配置成员/)).toBeInTheDocument()
+    await user.click(screen.getByRole('checkbox', { name: /^启用质量门/ }))
+    expect(screen.getByLabelText('审核成员')).toBeInTheDocument()
+    await user.click(screen.getByRole('checkbox', { name: /^启用质量门/ }))
+    expect(screen.queryByLabelText('审核成员')).not.toBeInTheDocument()
+  })
   it('renders team and member actions last in the keyboard-scrollable form flow', async () => {
     const { controller, user } = await setup(async <T,>(endpoint: string) => {
       if (endpoint === 'snapshot') return catalog() as T

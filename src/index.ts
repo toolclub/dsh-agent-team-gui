@@ -85,7 +85,7 @@ export class AgentTeamService extends ExecutionApplicationService {
   private registerConversationOrchestration(): void {
     this.ctx.on('agent/pre-step', async ({ agent, signal }, next) => {
       const decision = await next()
-      if (decision.kind === 'reject' || this.isDelegatedAgent(agent)) return decision
+      if (decision.kind === 'reject' || signal.aborted || this.isDelegatedAgent(agent)) return decision
       const submitted = [...decision.messages].reverse()
         .find((message): message is UserMessage => message.source.kind === 'user')
       if (submitted === undefined) return decision
@@ -94,9 +94,12 @@ export class AgentTeamService extends ExecutionApplicationService {
 
       const nextMode = await this.claimNextSessionSquadMode(agent.id, submitted.id)
       if (nextMode?.state === 'solo') {
-        const claimed = await this.claimGuaranteedMessage(agent, submitted.id, 'solo')
+        await this.claimGuaranteedMessage(agent, submitted.id, 'solo')
         await this.clearClaimedNextSessionSquadMode(agent.id, submitted.id)
-        return claimed ? decision : decision
+        return { ...decision, messages: [...decision.messages, createUserMessage({
+          content: [{ type: 'text', text: 'The user selected Solo for this message. Answer directly; do not call dispatch_to_squad or continue_squad_run. This one-shot choice overrides the conversation team default.' }],
+          source: { kind: 'plugin', plugin: 'dsh-agent-team-gui', form: 'notice', summary: 'Solo for this message' },
+        })] }
       }
       const mode = nextMode?.state === 'team' && nextMode.squadId !== undefined
         ? (() => {

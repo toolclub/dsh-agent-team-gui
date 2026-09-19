@@ -444,6 +444,9 @@ try {
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.waitForTimeout(100)
   const expectedNote = 'Hermetic browser keyboard and persistence verification.'
+  const usageMode = settingsRoot.getByLabel(/^(Team usage|小队使用方式)$/)
+  await usageMode.selectOption('model-tool')
+  invariant(await settingsRoot.getByLabel(/^(Response|响应方式)$/).isDisabled(), 'on-demand mode offered an unsupported background tool dispatch')
   const note = settingsRoot.locator('#team-note')
   await note.fill(expectedNote)
   const saveTeam = settingsRoot.getByRole('button', { name: /^(Save|保存)$/ }).last()
@@ -453,6 +456,16 @@ try {
   await saveTeam.waitFor({ state: 'visible' })
   await page.waitForFunction(element => element instanceof HTMLButtonElement && element.disabled, await saveTeam.elementHandle())
   await waitForPersistedTeamNote(fixture, seed.squadId, expectedNote)
+  const savedOnDemand = await fixture.rpc('snapshot')
+  invariant(savedOnDemand.squads.find(team => team.id === seed.squadId)?.triggerMode === 'model-tool', 'usage mode was not persisted through the Settings form')
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await completeOnboarding(page)
+  if (!await settingsRoot.isVisible()) {
+    await composerTrigger.click()
+    await page.locator('[data-testid="agent-team-composer"] [role="dialog"] button').filter({ hasText: /Edit|编辑/ }).first().click()
+  }
+  await settingsRoot.waitFor({ state: 'visible', timeout: 15_000 })
+  invariant(await usageMode.inputValue() === 'model-tool', 'saved usage mode did not survive browser reload')
   await assertNoSeriousAccessibilityViolations(page, '[data-testid="agent-team-settings"]', 'team Settings')
 
   // Reject local files before File.text/JSON.parse or any loopback request.

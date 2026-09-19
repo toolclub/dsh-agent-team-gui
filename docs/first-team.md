@@ -11,10 +11,10 @@ use seeded UI example data; they are not evidence that this exercise completed.
 
 You need a working DeepSeek Harness Web profile, pnpm, Node.js `>=22.19.0 <23` or `>=24.0.0`, and at
 least one working provider/model route. DSH compatibility is declared as `>=0.1.5-rc.1 <0.1.6-0`;
-the v1.2.0 release and current CI use DSH `0.1.5-rc.1`.
+the v1.3.0 release and current CI use DSH `0.1.5-rc.1`.
 
 ```sh
-dsh plugin --profile web add -w https://github.com/toolclub/dsh-agent-team-gui/releases/download/v1.2.0/dsh-agent-team-gui-1.2.0.tgz
+dsh plugin --profile web add -w https://github.com/toolclub/dsh-agent-team-gui/releases/download/v1.3.0/dsh-agent-team-gui-1.3.0.tgz
 dsh --profile web
 ```
 
@@ -53,7 +53,7 @@ The separate **Plan preview** action invokes the planner and consumes model Toke
 
 ## Set up the first run
 
-Select the imported **Full-stack delivery** team. For this exercise, set **Activation → Run every time**
+Select the imported **Full-stack delivery** team. For this exercise, set **Team usage → Host dispatches first** and **Dispatch policy → Run assigned work**
 and **Member selection → All members**, keep **Fixed order** off, and choose **Response → Finish before synthesis**.
 Save the team. The supplied recipe otherwise uses Smart/adaptive selection, which may skip a small
 task or use fewer members.
@@ -133,7 +133,7 @@ the lead model's final answer after team handoff.
 | --- | --- |
 | `dsh` is not found | Use the launcher for your working Harness. For npm, substitute `npx @deepseek-ai/dsh@0.1.5-rc.1` for `dsh`; from source, use `pnpm --dir /absolute/path/to/deepseek-harness dsh`. Use the same launcher for install and startup. |
 | Marketplace Git install fails | Install the compiled Release URL above directly. If the failed Git dependency remains, remove it with `dsh plugin --profile web remove dsh-agent-team-gui`, then retry the release command. |
-| Release download fails | Download the `.tgz` from [v1.2.0 Releases](https://github.com/toolclub/dsh-agent-team-gui/releases/tag/v1.2.0), then install its local absolute path. |
+| Release download fails | Download the `.tgz` from [v1.3.0 Releases](https://github.com/toolclub/dsh-agent-team-gui/releases/tag/v1.3.0), then install its local absolute path. |
 | Teams are missing or Host/client versions disagree | Confirm the Web profile, restart the DSH process, and refresh the browser. Record both plugin and DSH versions. |
 | Recipe import stays disabled | Map all missing routes, wait for preview, and refresh the preview if another window changed the definitions. |
 | Sending a message does not start the team | Check the selected team, conversation mode, one-message override, and the saved activation/member-selection settings. |

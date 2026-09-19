@@ -164,6 +164,8 @@ function TeamComposerControlContent({ controller, sessionId, useInput }: TeamCom
   const inputPhase = useInput((input: InputState) => input.phase)
   const locked = state.busy || inputPhase === 'submitting'
   const effectiveActivation = effectiveTeam?.activationMode ?? 'always'
+  const onDemand = effectiveTeam?.triggerMode === 'model-tool' && effectiveActivation !== 'manual'
+  const showPolicy = onDemand || effectiveActivation === 'manual' || (effectiveActivation === 'smart' && effectiveTeam?.executionOrder === undefined)
   const modeGroupName = `agent-team-conversation-mode:${sessionId}`
 
   const runModeAction = async (action: () => Promise<ModeResponse>): Promise<void> => {
@@ -240,7 +242,7 @@ function TeamComposerControlContent({ controller, sessionId, useInput }: TeamCom
       <span className="atg-mode-dot" aria-hidden="true" />
       <span>{label}</span>
       {activeName !== '' && <strong>{activeName}</strong>}
-      {state.effective !== null && effectiveActivation !== 'always' && <span className="atg-activation-badge">{t(effectiveActivation === 'manual' ? 'manualBadge' : 'smartBadge')}</span>}
+      {state.effective !== null && showPolicy && <span className="atg-activation-badge">{t(onDemand ? 'onDemandBadge' : effectiveActivation === 'manual' ? 'manualBadge' : 'smartBadge')}</span>}
       <span aria-hidden="true">⌄</span>
     </button>
     {open && <section ref={panelRef} id={panelId} tabIndex={-1} className={`atg-mode-panel placement-${panelPlacement.side}`} style={{ maxHeight: panelPlacement.maxHeight }} role="dialog" aria-label={t('modePanel')}>
@@ -252,7 +254,7 @@ function TeamComposerControlContent({ controller, sessionId, useInput }: TeamCom
           setState(current => ({ ...current, selected }))
           if (state.override === 'enabled') void runModeAction(() => controller.modes.set(sessionId, 'enabled', selected))
         }}>{catalog.data.squads.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
-        {state.effective !== null && effectiveActivation !== 'always' && <div className={`atg-activation-note mode-${effectiveActivation}`} role="note"><span>{t(effectiveActivation === 'manual' ? 'manualActiveHint' : 'smartActiveHint')}</span>{effectiveActivation === 'manual' && <button type="button" className="atg-button ghost" disabled={locked} onClick={() => { setNextTeam(state.effective?.squadId ?? '') }}>{t('useNextTeamNow')}</button>}</div>}
+        {state.effective !== null && showPolicy && <div className={`atg-activation-note mode-${effectiveActivation}`} role="note"><span>{t(onDemand ? 'onDemandActiveHint' : effectiveActivation === 'manual' ? 'manualActiveHint' : 'smartActiveHint')}</span>{effectiveActivation === 'manual' && <button type="button" className="atg-button ghost" disabled={locked} onClick={() => { setNextTeam(state.effective?.squadId ?? '') }}>{t('useNextTeamNow')}</button>}</div>}
         <fieldset className="atg-choice-group"><legend>{t('durableChoice')}</legend>
           <ModeChoice groupName={modeGroupName} checked={state.override === 'inherit'} disabled={locked} label={t('inheritProject')} description={state.projectDefault === null ? t('noProjectDefault') : catalog.data.squads.find(item => item.id === state.projectDefault)?.name ?? state.projectDefault} onChange={() => { setDurable('inherit') }} />
           <ModeChoice groupName={modeGroupName} checked={state.override === 'enabled'} disabled={locked || state.selected === ''} label={t('explicitTeam')} description={selectedTeam?.name ?? ''} onChange={() => { setDurable('enabled') }} />
