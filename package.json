@@ -96,7 +96,7 @@
     "preflight": "node scripts/quality/release-preflight.mjs"
   },
   "dependencies": {
-    "react": "^18.2.0",
+    "react": "^19.3.0",
     "zod": "^4.4.3"
   },
   "peerDependencies": {
@@ -165,12 +165,12 @@
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^14.6.1",
     "@types/node": "^24.0.0",
-    "@types/react": "~18.3.1",
+    "@types/react": "~19.3.0",
     "@types/react-dom": "~18.3.1",
     "dsh-plugin-doctor": "0.1.0",
     "happy-dom": "^20.11.2",
     "playwright": "^1.62.1",
-    "react-dom": "^18.2.0",
+    "react-dom": "^19.3.0",
     "tsdown": "^0.22.14",
     "typescript": "^7.0.2",
     "vitest": "^4.1.10",
