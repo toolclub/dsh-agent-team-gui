@@ -96,9 +96,9 @@ for the first run; multiple providers are optional.
 1. Download the recipe JSON. Open **Settings → Teams → Recipes & data** and choose **Choose recipe file**.
 2. Map the placeholder routes to your configured provider/model routes, review the preview, and choose
    **Create a copy → Import reviewed recipe**. In **Member library**, confirm each member's exact model and tool access.
-3. For this first walkthrough, set the imported team's activation to **Run every time** and member selection to
+3. For this first walkthrough, set **Team usage → Host dispatches first**, **Dispatch policy → Run assigned work**, and member selection to
    **All members**, then save. The supplied recipe otherwise uses Smart/adaptive selection.
-4. Select an empty scratch project, choose the imported team beside the composer, select **Always use team**, and send the
+4. Select an empty scratch project, choose the imported team beside the composer, select **Select team for this conversation**, and send the
    [ready-to-copy task](docs/first-team.md#try-a-small-development-task): build and test a small to-do list.
 5. Open **Team runs** to inspect the plan, outputs, review, and actual Token coverage. Check the delivered
    files and test results before treating the task as complete.
@@ -119,25 +119,30 @@ Choose **Team**, **Solo**, or **Inherited** beside the composer to control the c
 ## How orchestration works
 
 ```mermaid
-flowchart LR
-    U["Normal user message"] --> M{"Conversation mode"}
-    M -->|"Solo"| L["Lead Agent answers normally"]
-    M -->|"Team / inherited default"| A{"Activation"}
-    A -->|"Manual"| L
-    A -->|"Smart may skip"| P["Bounded lead-model planner"]
-    A -->|"Always"| P
-    P --> D["Validated acyclic plan"]
-    D --> W1["Ready member wave"]
-    W1 --> W2["Dependent member wave"]
-    W2 --> Q{"Optional quality gate"}
-    Q -->|"Approved / disabled"| H["Bounded handoffs"]
-    Q -->|"At most 2 repairs"| R["Named repair owner"]
-    R --> Q
-    H --> L
-    D -. "live state + official Tokens" .-> C["Run Center and Insights"]
+flowchart TD
+    U[User message] --> M{Effective mode and one-shot choice}
+    M -->|Solo or Manual| L[Lead handles request directly]
+    M -->|On demand| J{Lead decides whether delegation helps}
+    J -->|No| L
+    J -->|Missing information| A[Ask user]
+    J -->|Yes: dispatch_to_squad| D[Validate and admit one initial dispatch]
+    M -->|Host dispatch or Force Team next| D
+    D --> P[Use explicit plan or invoke bounded planner]
+    P -->|Smart skip| L
+    P --> W[Dependency-ready members, failure policy, optional quality gate]
+    W --> R[Persist results, diagnosis and reported usage]
+    R --> L
+    R -->|Lead reviews unfinished work| C[Bounded continue_squad_run]
+    C -->|Reuse successes, shared budget, one continuation| W
 ```
 
-With no fixed order, the plugin uses the active conversation's provider/model route in a bounded,
+New editor drafts and built-in templates default to **Lead decides when to delegate**.
+Selecting a team makes it available; simple answers create no planning child or team run.
+Saved/imported choices and legacy missing-field defaults remain unchanged.
+[Full flow and edge-case contract](docs/on-demand-flow.md). Host background runs finish in Run Center;
+model-initiated tool dispatch waits for its result.
+
+After dispatch, when no explicit assignments/order are supplied and no fixed order exists, the plugin uses the active conversation's provider/model route in a bounded,
 tool-free planner child. It receives the member roles and returns structured assignments plus an
 acyclic dependency graph. It does not turn one member into a replacement for the whole team. A
 bad, cyclic, or unavailable plan falls back to deterministic role-scoped assignments.
@@ -148,9 +153,9 @@ override and bypasses DAG planning.
 
 ### Activation and selection
 
-- **Always** runs the selected team for every eligible top-level user message.
+- **Run assigned work** requires execution once dispatch has been chosen; it does not force on-demand delegation.
 - **Smart** lets the bounded planner skip unsuitable/trivial work.
-- **Manual** keeps ordinary sends Solo; queue the team for the next message or use the model tool.
+- **Manual** blocks ordinary automatic/model dispatch; explicitly choose Force Team next or a manual Run Center action.
 - **All members** assigns each configured member exactly once.
 - **Adaptive** lets Smart planning select the smallest useful non-empty subset.
 

@@ -53,7 +53,7 @@ The separate **Plan preview** action invokes the planner and consumes model Toke
 
 ## Set up the first run
 
-Select the imported **Full-stack delivery** team. For this exercise, set **Activation → Run every time**
+Select the imported **Full-stack delivery** team. For this exercise, set **Team usage → Host dispatches first** and **Dispatch policy → Run assigned work**
 and **Member selection → All members**, keep **Fixed order** off, and choose **Response → Finish before synthesis**.
 Save the team. The supplied recipe otherwise uses Smart/adaptive selection, which may skip a small
 task or use fewer members.

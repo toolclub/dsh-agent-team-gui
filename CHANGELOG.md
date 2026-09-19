@@ -1,5 +1,23 @@
 # Changelog
 
+## Unreleased
+
+- Expose **Team usage** in Settings: **Lead decides when to delegate** or **Host
+  dispatches first**. New editor drafts and built-in templates default to on-demand;
+  existing saved/imported choices and legacy guaranteed defaults remain intact.
+- On-demand guidance lets the lead answer simple work or clarify missing information
+  before deciding to delegate, without starting a planning child for that decision.
+  Include bounded member roles/tool capabilities and keep adaptive planning available.
+- Clarify conversation selection, next-message forcing, Manual-only policy and the
+  foreground-only model-tool path. Preserve stored host-background preferences while
+  displaying the effective foreground behavior in on-demand mode.
+- Enforce Solo, Manual-only and selected-team boundaries at model-tool admission;
+  preserve one-shot Team overrides and bounded execution-chain continuation. Cancelled
+  pre-steps do not consume queued choices. One-shot Solo adds an explicit lead notice.
+- Fix fixed-order/quality toggle handlers reading an expired React event inside a
+  deferred state update. Give selects explicit accessible labels and show effective
+  fixed-order behavior instead of promising smart skipping/adaptive selection.
+
 ## 1.2.0 — 2026-09-18
 
 - Address #70 with a tool-free system failure coordinator. `retry-once` diagnoses

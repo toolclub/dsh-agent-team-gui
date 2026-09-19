@@ -55,7 +55,7 @@ export const EMPTY_AGENT: AgentDraft = {
 
 export const EMPTY_SQUAD: SquadDraft = {
   id: '', name: '', collabNote: '', members: [], fixedOrder: false, executionOrder: [], executionMode: 'serial', contextMode: 'fork',
-  leaderAgentId: '', triggerMode: 'guaranteed', failurePolicy: 'continue', maxConcurrency: '', memberTimeoutMs: '', tokenBudget: '',
+  leaderAgentId: '', triggerMode: 'model-tool', failurePolicy: 'continue', maxConcurrency: '', memberTimeoutMs: '', tokenBudget: '',
   handoffSummaryMaxChars: '',
   activationMode: 'always', memberSelectionMode: 'all', responseMode: 'foreground', planningContext: 'current', plannerMaxTokens: '2048',
   qualityEnabled: false, reviewerAgentId: '', repairAgentId: '', qualityMaxRounds: '1', qualityCriteria: '',

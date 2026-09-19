@@ -222,7 +222,22 @@ export class ExecutionApplicationService extends DefinitionApplicationService {
         'INVALID_DISPATCH',
       )
     }
+    this.assertModelTeamPolicy(parent, request.squadId, sourceMessageId)
     return this.dispatch(request, parent, signal, { sessionId: parent.id, sourceMessageId, claimSourceMessage: true })
+  }
+
+  private assertModelTeamPolicy(parent: Agent, squadId: SquadId, messageId: string, continuing = false): void {
+    const receipt = this.messageClaims().get(`${parent.id}:${messageId}`)
+    if (receipt?.kind === 'solo' || (this.getSessionSquadOverride(parent.id) === 'disabled' && receipt?.kind !== 'team')) {
+      throw new AgentTeamError('Solo is selected for this message/conversation; model-driven squad execution is disabled.', 'INVALID_DISPATCH')
+    }
+    if (!continuing && this.squads().get(squadId)?.activationMode === 'manual') {
+      throw new AgentTeamError('This squad is Manual-only. Use the explicit Force Team next control instead of model-driven dispatch.', 'INVALID_DISPATCH')
+    }
+    const selected = this.getEffectiveSessionSquadMode(parent)
+    if (!continuing && selected !== undefined && selected.squadId !== squadId) {
+      throw new AgentTeamError('Dispatch must use the selected squad; change the conversation team selection before using another squad.', 'INVALID_DISPATCH')
+    }
   }
 
   private chainUsage(run: SquadRunRecord | undefined): AgentTokenUsage {
@@ -269,6 +284,7 @@ export class ExecutionApplicationService extends DefinitionApplicationService {
       || source.sourceMessageId !== this.latestHumanMessageId(parent)) {
       throw new AgentTeamError('Continuation must belong to the calling session and its current user message.', 'INVALID_DISPATCH')
     }
+    this.assertModelTeamPolicy(parent, source.squadId, source.sourceMessageId, true)
     if (source.chain?.revision !== request.expectedRevision) throw new AgentTeamError('Stale execution-chain plan revision.', 'INVALID_DISPATCH')
     // The system assigns the successor id. Model-supplied fresh ids cannot bypass this receipt.
     const key = createHash('sha256').update(JSON.stringify({

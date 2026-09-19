@@ -7,7 +7,7 @@ import type { AgentTeamService } from '../index.ts'
 export function createDispatchToSquadTool(service: AgentTeamService) {
   return defineTool({
     name: 'dispatch_to_squad',
-    description: 'Dispatch a task to a configured agent squad. Use assignments when particular members should do different work.',
+    description: 'Delegate work to a configured squad only when member expertise, parallel deliverables or independent review adds value, or the user requests team execution. Handle simple tasks directly and clarify missing information first. Use distinct member-specific assignments, or omit assignments/memberOrder to invoke planning. One initial dispatch per user message; respect Solo and Manual-only modes.',
     parameters: {
       squadId: {
         type: 'string',

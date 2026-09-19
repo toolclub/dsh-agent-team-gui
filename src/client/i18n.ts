@@ -15,6 +15,12 @@ export interface LocaleService {
 }
 
 const zh = {
+  teamUsageMode: '小队使用方式', modelToolMode: '主 Agent 按需使用', guaranteedMode: 'Host 强制派工',
+  modelToolHint: '主 Agent 先判断：简单任务直接完成，信息不足先澄清，需要分工时才调用小队。直接完成时不会启动规划器或成员。',
+  guaranteedHint: 'Host 在主 Agent 回答前进入小队调度，再遵循下方规划策略。智能策略可跳过，手动策略需显式选择下一条小队。',
+  modelToolBackgroundHint: '按需派工会等待小队结果。后台设置仅用于 Host 强制派工或“下一条强制使用小队”。',
+  onDemandBadge: '按需', onDemandActiveHint: '主 Agent 按需使用这支小队：简单任务自己完成，需要分工时才派工。',
+  fixedPolicyHint: '固定顺序会直接执行全部配置成员，不经过智能规划器或自适应选人；按需模式仍可由主 Agent 决定不派工。',
   executionChain: '执行链', chainRevision: '继续次数', chainUsage: '执行链累计已报告 Token', reusedResult: '复用已有成果，未再次执行', chainPrevious: '基于运行',
   recoveryTitle: '系统重试诊断', recoveryDiagnosing: '正在分析失败原因与已有进展…', recoveryComplete: '诊断完成', recoveryStopped: '未继续重试',
   recoveryRevise: '建议主 Agent 修正剩余任务', recoveryRetry: '临时故障，可重试', recoveryStop: '停止并交回负责人',
@@ -33,7 +39,7 @@ const zh = {
   teamName: '小队名称', teamNamePlaceholder: '例如：产品交付组', collaborationNote: '协作说明', collaborationPlaceholder: '说明小队擅长什么，以及成员如何合作。',
   selectMembers: '选择成员', fixedOrder: '固定顺序', fixedOrderHint: '关闭时由主 Agent 根据当前任务生成依赖图。', executionOrder: '执行顺序',
   executionMode: '执行方式', inheritPluginDefault: '继承插件默认', inheritCurrent: '继承（当前为 {value}）', fixedOrderSerial: '固定顺序（串行）', legacyPlanningFull: '保持旧默认（完整对话）', serial: '串行', parallel: '并行', contextMode: '上下文模式', spawn: '独立上下文', fork: '继承对话', chain: '串行传递',
-  activationMode: '触发策略', always: '每次都运行', smart: '智能判断', manual: '仅手动触发', memberSelection: '成员选择', allMembers: '全部成员', adaptive: '按任务选择',
+  activationMode: '派工策略', always: '执行已派任务', smart: '规划器可跳过', manual: '仅手动触发', memberSelection: '成员选择', allMembers: '全部成员', adaptive: '按任务选择',
   responseMode: '响应方式', foreground: '前台完成后汇总', background: '后台运行', planningContext: '规划上下文', current: '仅当前请求', recent: '最近对话', full: '完整对话',
   plannerMaxTokens: '规划 Token 上限', teamLeader: '备用规划成员', noLeader: '自动选择', failurePolicy: '失败处理', continue: '继续其他成员', stop: '立即停止', retryOnce: '诊断后最多重试一次',
   maxConcurrency: '最大并发', memberTimeout: '成员超时（毫秒）', tokenBudget: '小队 Token 软预算', handoffSummaryLimit: '成员交接摘要上限（字符）', handoffSummaryHint: '留空使用默认 16,000。完整原始输出仍保存在运行中心；依赖与主模型提示词另有聚合边界。',
@@ -48,10 +54,10 @@ const zh = {
   templates: '快速模板', templateHint: '使用已配置模型创建可继续编辑的小队。', development: '全栈开发', reviewTeam: '并行审查', productTeam: '产品设计',
   configureModels: '请先在设置的“模型”中配置至少一个模型。', templateCreated: '已创建“{name}”，可以继续调整成员和策略。', copyName: '{name} 副本', invalidJson: 'JSON 格式无效。',
   versions: '版本历史', restorePreview: '预览恢复', confirmRestore: '确认恢复此版本', restoreMembers: '将恢复 {count} 个成员快照', restoreAffectedTeams: '共享成员会同时改变这些小队：{names}', staleRestorePreview: '定义已发生变化，恢复预览已经失效。请重新预览这个版本。', diagnose: '检查配置', diagnosticsPassed: '小队检查通过。', diagnosticsFailed: '小队检查未通过。',
-  modeTeam: '小队', modeSolo: '单人', modeInherited: '继承', modeLoading: '加载中', modePanel: '小队模式设置', durableChoice: '本对话模式', inheritProject: '继承项目默认', explicitTeam: '始终使用小队', explicitSolo: '始终使用单人',
+  modeTeam: '小队', modeSolo: '单人', modeInherited: '继承', modeLoading: '加载中', modePanel: '小队模式设置', durableChoice: '本对话模式', inheritProject: '继承项目默认', explicitTeam: '本对话选择小队', explicitSolo: '始终使用单人',
   manualBadge: '手动', smartBadge: '智能', manualActiveHint: '这个小队设为“仅手动触发”：普通发送不会启动成员。可将下一条消息显式设为小队。', smartActiveHint: '这个小队会先判断任务是否需要多人协作；简单请求可能被有意跳过。', useNextTeamNow: '下一条使用这个小队',
   selectedTeam: '选择小队', projectDefault: '项目默认', setProjectDefault: '设为当前项目默认小队', clearProjectDefault: '取消当前项目默认小队', noProjectDefault: '未设置',
-  nextMessage: '仅下一条消息', nextInherit: '跟随对话模式', nextTeam: '下一条使用小队', nextSolo: '下一条使用单人', nextOverrideActive: '一次性模式会在下一次发送后自动清除。', nextQueuedTeam: '已排队：{name}（{id}）', replaceNextTeam: '改为当前选中小队',
+  nextMessage: '仅下一条消息', nextInherit: '跟随对话模式', nextTeam: '下一条强制使用小队', nextSolo: '下一条使用单人', nextOverrideActive: '一次性模式会在下一次发送后自动清除。', nextQueuedTeam: '已排队：{name}（{id}）', replaceNextTeam: '改为当前选中小队',
   lastRun: '最近运行', noRuns: '这个对话还没有小队运行记录。', close: '关闭', connectionError: '无法连接小队服务',
   runIntro: '查看计划、依赖阶段、成员输出与 Provider 上报的 Token 用量。', filterAll: '全部状态', filterLive: '进行中', filterFailed: '需要关注', filterDone: '已完成',
   statusPlanning: '规划中', statusQueued: '排队中', statusRunning: '运行中', statusCompleted: '已完成', statusPartial: '部分完成', statusFailed: '失败', statusCancelled: '已取消', statusInterrupted: '已中断', statusTimedOut: '已超时', statusSkipped: '已跳过',
@@ -71,6 +77,12 @@ const zh = {
 } as const
 
 const en: Record<keyof typeof zh, string> = {
+  teamUsageMode: 'Team usage', modelToolMode: 'Lead decides when to delegate', guaranteedMode: 'Host dispatches first',
+  modelToolHint: 'The lead handles simple work directly, asks for missing information, and delegates only when division of work helps. Direct answers start no planner or members.',
+  guaranteedHint: 'The host enters team dispatch before the lead answers, subject to the planning policy below. Smart may skip; Manual requires an explicit next-message Team choice.',
+  modelToolBackgroundHint: 'Model-initiated dispatch waits for the result. Background settings apply only to host dispatch or Force Team next.',
+  onDemandBadge: 'On demand', onDemandActiveHint: 'The lead uses this team on demand: simple tasks stay with the lead; work is delegated when useful.',
+  fixedPolicyHint: 'Fixed order runs every configured member without smart planning or adaptive selection. On-demand mode still lets the lead decide not to delegate.',
   executionChain: 'Execution chain', chainRevision: 'Continuations', chainUsage: 'Chain reported tokens', reusedResult: 'Reused result; not executed again', chainPrevious: 'Continues run',
   recoveryTitle: 'System retry diagnosis', recoveryDiagnosing: 'Analyzing failure and existing progress…', recoveryComplete: 'Diagnosis complete', recoveryStopped: 'Retry not started',
   recoveryRevise: 'Recommend revised remaining work to lead', recoveryRetry: 'Transient failure: retry', recoveryStop: 'Stop and return to lead',
@@ -89,7 +101,7 @@ const en: Record<keyof typeof zh, string> = {
   teamName: 'Team name', teamNamePlaceholder: 'e.g. Product delivery', collaborationNote: 'Collaboration note', collaborationPlaceholder: 'Describe what this team does well and how its members collaborate.',
   selectMembers: 'Select members', fixedOrder: 'Fixed order', fixedOrderHint: 'When off, the lead Agent creates a task-specific dependency graph.', executionOrder: 'Execution order',
   executionMode: 'Execution', inheritPluginDefault: 'Inherit plugin default', inheritCurrent: 'Inherit (currently {value})', fixedOrderSerial: 'Fixed order (serial)', legacyPlanningFull: 'Keep legacy default (full conversation)', serial: 'Serial', parallel: 'Parallel', contextMode: 'Context', spawn: 'Independent', fork: 'Inherit conversation', chain: 'Pass results serially',
-  activationMode: 'Activation', always: 'Run every time', smart: 'Smart decision', manual: 'Manual only', memberSelection: 'Member selection', allMembers: 'All members', adaptive: 'Task-specific subset',
+  activationMode: 'Dispatch policy', always: 'Run assigned work', smart: 'Planner may skip', manual: 'Manual only', memberSelection: 'Member selection', allMembers: 'All members', adaptive: 'Task-specific subset',
   responseMode: 'Response', foreground: 'Finish before synthesis', background: 'Run in background', planningContext: 'Planning context', current: 'Current request only', recent: 'Recent conversation', full: 'Full conversation',
   plannerMaxTokens: 'Planner token limit', teamLeader: 'Fallback planner', noLeader: 'Auto-select', failurePolicy: 'On failure', continue: 'Continue other members', stop: 'Stop immediately', retryOnce: 'Diagnose, then retry at most once',
   maxConcurrency: 'Max concurrency', memberTimeout: 'Member timeout (ms)', tokenBudget: 'Team soft token budget', handoffSummaryLimit: 'Member handoff summary limit (characters)', handoffSummaryHint: 'Leave blank for the 16,000 default. Complete raw output remains in Run Center; dependency and lead prompts keep separate aggregate bounds.',

@@ -45,6 +45,26 @@ async function readyController(rpc: AgentTeamRpc): Promise<AgentTeamController> 
 afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
 
 describe('TeamComposerControl', () => {
+  it('labels an on-demand team without claiming it always runs or invoking a planner', async () => {
+    const calls: string[] = []
+    const controller = await readyController(async <T,>(endpoint: string) => {
+      calls.push(endpoint)
+      if (endpoint === 'snapshot') return snapshot([{ id: 'team-1', name: 'On-demand team', members: ['agent-1'], collabNote: '', triggerMode: 'model-tool', activationMode: 'smart' }]) as T
+      if (endpoint === 'mode/get') return mode({ sessionOverride: 'enabled', mode: { sessionId: 'session-1', squadId: 'team-1', squadName: 'On-demand team' } }) as T
+      if (endpoint === 'run/list') return { runs: [] } as T
+      throw new Error(`unexpected ${endpoint}`)
+    })
+    const user = userEvent.setup()
+    render(<TeamComposerControl {...composerProps(controller)} />)
+    const trigger = await screen.findByRole('button', { name: /小队模式设置: 小队/ })
+    expect(trigger).toHaveTextContent('按需')
+    await user.click(trigger)
+    expect(screen.getByRole('note')).toHaveTextContent('简单任务自己完成')
+    expect(screen.getByRole('radio', { name: /本对话选择小队/ })).toBeInTheDocument()
+    expect(screen.queryByText('始终使用小队')).not.toBeInTheDocument()
+    expect(calls).not.toContain('plan/preview')
+    expect(calls).not.toContain('dispatch')
+  })
   it('switches inherit → Team → Solo and applies/clears one-shot choices', async () => {
     const calls: Array<[string, unknown]> = []
     let current = mode()
@@ -74,7 +94,7 @@ describe('TeamComposerControl', () => {
 
     await user.click(await screen.findByRole('button', { name: /小队模式设置/ }))
     const panel = screen.getByRole('dialog', { name: '小队模式设置' })
-    await user.click(within(panel).getByRole('radio', { name: /始终使用小队/ }))
+    await user.click(within(panel).getByRole('radio', { name: /本对话选择小队/ }))
     await waitFor(() => { expect(screen.getByRole('button', { name: /小队模式设置: 小队/ })).toBeInTheDocument() })
     await user.click(within(panel).getByRole('radio', { name: /始终使用单人/ }))
     await waitFor(() => {
@@ -164,9 +184,9 @@ describe('TeamComposerControl', () => {
     const user = userEvent.setup()
     render(<TeamComposerControl {...composerProps(controller)} />)
     await user.click(await screen.findByRole('button', { name: /小队模式设置/ }))
-    await user.click(screen.getByRole('radio', { name: /始终使用小队/ }))
+    await user.click(screen.getByRole('radio', { name: /本对话选择小队/ }))
     expect(await screen.findByRole('alert')).toHaveTextContent('DeepSeek Harness')
-    expect(screen.getByRole('radio', { name: /始终使用小队/ })).not.toBeDisabled()
+    expect(screen.getByRole('radio', { name: /本对话选择小队/ })).not.toBeDisabled()
   })
 
   it('unlocks after a permanently pending mode read and exposes Retry', async () => {
@@ -180,16 +200,16 @@ describe('TeamComposerControl', () => {
     })
     render(<TeamComposerControl {...composerProps(controller)} />)
     fireEvent.click(screen.getByRole('button', { name: /小队模式设置/ }))
-    expect(screen.getByRole('radio', { name: /始终使用小队/ })).toBeDisabled()
+    expect(screen.getByRole('radio', { name: /本对话选择小队/ })).toBeDisabled()
     await act(async () => { vi.advanceTimersByTime(5_001); await Promise.resolve() })
     expect(modeSignal?.aborted).toBe(true)
     expect(screen.getByRole('alert')).toHaveTextContent('请求超时')
-    expect(screen.getByRole('radio', { name: /始终使用小队/ })).not.toBeDisabled()
+    expect(screen.getByRole('radio', { name: /本对话选择小队/ })).not.toBeDisabled()
     expect(screen.getByRole('button', { name: '重试' })).toBeEnabled()
   })
 
   it('explains a Manual effective team and offers an explicit one-shot team send', async () => {
-    const squads = [{ id: 'team-1', name: 'Manual delivery', members: ['agent-1'], collabNote: '', activationMode: 'manual' as const }]
+    const squads = [{ id: 'team-1', name: 'Manual delivery', members: ['agent-1'], collabNote: '', activationMode: 'manual' as const, triggerMode: 'model-tool' as const }]
     let current = mode({ sessionOverride: 'enabled', mode: { sessionId: 'session-1', squadId: 'team-1', squadName: 'Manual delivery' } })
     const calls: Array<[string, unknown]> = []
     const controller = await readyController(async <T,>(endpoint: string, payload: unknown) => {
