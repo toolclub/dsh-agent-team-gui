@@ -13,7 +13,7 @@ Save the team once, choose a model for each member, and reuse it across projects
 Follow the plan, member outputs, retries, and provider-reported Token usage in one Run Center.
 This is an unofficial community plugin for the **DeepSeek Harness Web profile**.
 
-[Watch the 80-second UI guide](https://github.com/toolclub/dsh-agent-team-gui/blob/main/assets/promotion-walkthrough-zh.mp4) · [Install v1.2.0](#install) · [Run your first team](docs/first-team.md) ·
+[Watch the 80-second UI guide](https://github.com/toolclub/dsh-agent-team-gui/blob/main/assets/promotion-walkthrough-zh.mp4) · [Install v1.3.0](#install) · [Run your first team](docs/first-team.md) ·
 [Example recipe](examples/full-stack-delivery.recipe.json) ·
 [Share a workflow](https://github.com/toolclub/dsh-agent-team-gui/discussions/1)
 
@@ -42,29 +42,30 @@ Teams**, then use it across projects and conversations.
 
 | Plugin release | DSH target | Upgrade guidance |
 | --- | --- | --- |
-| **1.2.0** | `>=0.1.5-rc.1 <0.1.6-0` | Recommended; failure diagnosis and bounded lead-driven continuation |
+| **1.3.0** | `>=0.1.5-rc.1 <0.1.6-0` | Recommended; selectable on-demand delegation and consistent mode boundaries |
+| 1.2.0 | `>=0.1.5-rc.1 <0.1.6-0` | Failure diagnosis and bounded lead-driven continuation |
 | 1.1.1 | `>=0.1.5-rc.1 <0.1.6-0` | Earlier workflow fixes; retries still replay the assignment |
-| 1.1.0 | `>=0.1.5-rc.1 <0.1.6-0` | Initial 0.1.5 compatibility; upgrade the plugin to 1.2.0 |
+| 1.1.0 | `>=0.1.5-rc.1 <0.1.6-0` | Initial 0.1.5 compatibility; upgrade the plugin to 1.3.0 |
 | 1.0.1 | Verified with `0.1.1-rc.2` | Previous integration; upgrade both DSH and the plugin together |
 
 The walkthrough has [English subtitles](https://github.com/toolclub/dsh-agent-team-gui/blob/main/docs/promotion/demo-captions.en.srt)
 and [Chinese subtitles](https://github.com/toolclub/dsh-agent-team-gui/blob/main/docs/promotion/demo-captions.zh-CN.srt).
 Load the SRT alongside the existing video in a compatible player; GitHub does not attach it automatically.
 
-Upgrading DSH from 0.1.1? Use plugin **v1.2.0** for DSH **0.1.5**. This release fixes
+Upgrading DSH from 0.1.1? Use plugin **v1.3.0** for DSH **0.1.5**. This release fixes
 `source.subscribe` during plugin loading, migrates reconnect and Session APIs, and keeps the existing
 team definitions and run store. Restart DSH and refresh the browser after upgrading. The CLI may
 report `0.1.5-rc.1` while its compatible internal packages resolve to `0.1.5-rc.2`.
 
 Requirements: a working DeepSeek Harness **Web** profile, at least one configured provider/model,
 Node.js `>=22.19.0 <23` or `>=24.0.0`, and pnpm. Declared DSH compatibility is
-`>=0.1.5-rc.1 <0.1.6-0`; the v1.2.0 release was verified against DSH `0.1.5-rc.1`.
+`>=0.1.5-rc.1 <0.1.6-0`; the v1.3.0 release was verified against DSH `0.1.5-rc.1`.
 
 **Recommended: install the compiled release package.** It includes the built Host and client files,
 so installation does not run this plugin's Git `prepare` build or require its `allowBuilds` entry.
 
 ```sh
-dsh plugin --profile web add -w https://github.com/toolclub/dsh-agent-team-gui/releases/download/v1.2.0/dsh-agent-team-gui-1.2.0.tgz
+dsh plugin --profile web add -w https://github.com/toolclub/dsh-agent-team-gui/releases/download/v1.3.0/dsh-agent-team-gui-1.3.0.tgz
 dsh --profile web
 ```
 
@@ -72,7 +73,7 @@ Stop and restart an already-running DSH Web process after installing or upgradin
 **Settings → Teams**. If a plugin marketplace chooses Git installation and fails, use the direct
 release command above; see [installation troubleshooting](docs/first-team.md#installation-troubleshooting).
 
-[Release notes and checksum](https://github.com/toolclub/dsh-agent-team-gui/releases/tag/v1.2.0) ·
+[Release notes and checksum](https://github.com/toolclub/dsh-agent-team-gui/releases/tag/v1.3.0) ·
 [Git/source installation](#git-source-installation)
 
 > [!TIP]
@@ -314,7 +315,7 @@ or team versions. Set a positive limit only when automatic cleanup is the behavi
 Use this alternative when you intend to build from source:
 
 ```sh
-dsh plugin --profile web add -w github:toolclub/dsh-agent-team-gui#v1.2.0
+dsh plugin --profile web add -w github:toolclub/dsh-agent-team-gui#v1.3.0
 ```
 
 Git dependencies run this repository's `prepare` build. On pnpm 10+, authorize only the exact
@@ -352,7 +353,7 @@ output directory; audits the tarball and secrets; and boots an isolated temporar
 ```sh
 mkdir -p dist
 pnpm pack --pack-destination dist
-dsh plugin --profile web add -w ./dist/dsh-agent-team-gui-1.2.0.tgz
+dsh plugin --profile web add -w ./dist/dsh-agent-team-gui-1.3.0.tgz
 ```
 
 The package audit verifies runtime/declaration closure, examples, governance files, screenshots,
@@ -364,7 +365,7 @@ credential patterns.
 You can send this single instruction inside DeepSeek Harness:
 
 > Follow the installation and security notes in
-> https://github.com/toolclub/dsh-agent-team-gui. Install the compiled v1.2.0 Release tarball into
+> https://github.com/toolclub/dsh-agent-team-gui. Install the compiled v1.3.0 Release tarball into
 > the Web profile, restart Web, verify the composed configuration, and report the installed version
 > and installation source.
 

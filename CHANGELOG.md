@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.3.0 — 2026-09-19
 
 - Expose **Team usage** in Settings: **Lead decides when to delegate** or **Host
   dispatches first**. New editor drafts and built-in templates default to on-demand;

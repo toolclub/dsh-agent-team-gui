@@ -41,15 +41,16 @@ Provider 上报的 Token 用量；下一次继续使用同一套小队配置。
 
 | 插件版本 | DSH 版本 | 升级建议 |
 | --- | --- | --- |
-| **1.2.0** | `>=0.1.5-rc.1 <0.1.6-0` | 推荐版本，增加失败诊断和主 Agent 受控继续派工 |
+| **1.3.0** | `>=0.1.5-rc.1 <0.1.6-0` | 推荐版本，可选择按需派工，并完善模式边界 |
+| 1.2.0 | `>=0.1.5-rc.1 <0.1.6-0` | 失败诊断和主 Agent 受控继续派工 |
 | 1.1.1 | `>=0.1.5-rc.1 <0.1.6-0` | 修复早期工作流问题，自动重试仍复用原任务 |
-| 1.1.0 | `>=0.1.5-rc.1 <0.1.6-0` | 首个 0.1.5 适配版本，建议更新插件到 1.2.0 |
+| 1.1.0 | `>=0.1.5-rc.1 <0.1.6-0` | 首个 0.1.5 适配版本，建议更新插件到 1.3.0 |
 | 1.0.1 | 已验证 `0.1.1-rc.2` | 旧版集成；需要同时升级 DSH 和插件 |
 
 已有导览提供[英文字幕](https://github.com/toolclub/dsh-agent-team-gui/blob/main/docs/promotion/demo-captions.en.srt)
 和[中文字幕](https://github.com/toolclub/dsh-agent-team-gui/blob/main/docs/promotion/demo-captions.zh-CN.srt)，可在支持字幕的播放器中手动加载 SRT；GitHub 不会自动叠加字幕。
 
-从 DSH 0.1.1 升级时，请搭配 **插件 v1.2.0 + DSH 0.1.5**。新版修复了加载时的
+从 DSH 0.1.1 升级时，请搭配 **插件 v1.3.0 + DSH 0.1.5**。新版修复了加载时的
 `source.subscribe` 报错，并适配连接恢复和 Session API；现有小队定义与运行记录继续保留。
 升级后重启 DSH 并刷新浏览器。CLI 可能显示 `0.1.5-rc.1`，内部兼容包实际解析为 `0.1.5-rc.2`。
 
@@ -57,10 +58,10 @@ Provider 上报的 Token 用量；下一次继续使用同一套小队配置。
 `>=22.19.0 <23` 或 `>=24.0.0`（不支持 Node.js 23）、pnpm，以及至少一条已经配置好的
 DSH provider/model 路由。仓库 CI 当前使用 DSH `0.1.5-rc.1`。
 
-直接安装 **v1.2.0 预编译发布包**：
+直接安装 **v1.3.0 预编译发布包**：
 
 ```sh
-dsh plugin --profile web add -w https://github.com/toolclub/dsh-agent-team-gui/releases/download/v1.2.0/dsh-agent-team-gui-1.2.0.tgz
+dsh plugin --profile web add -w https://github.com/toolclub/dsh-agent-team-gui/releases/download/v1.3.0/dsh-agent-team-gui-1.3.0.tgz
 dsh --profile web
 ```
 
@@ -306,7 +307,7 @@ Web bundle 只插入一条唯一 Host row；它复用 Web profile 已有的 stor
 如果希望从已审查的源码构建，可以安装固定 tag：
 
 ```sh
-dsh plugin --profile web add -w github:toolclub/dsh-agent-team-gui#v1.2.0
+dsh plugin --profile web add -w github:toolclub/dsh-agent-team-gui#v1.3.0
 dsh --profile web
 ```
 
@@ -349,7 +350,7 @@ dsh plugin --profile web add -w .
 ```sh
 mkdir -p dist
 pnpm pack --pack-destination dist
-dsh plugin --profile web add -w ./dist/dsh-agent-team-gui-1.2.0.tgz
+dsh plugin --profile web add -w ./dist/dsh-agent-team-gui-1.3.0.tgz
 ```
 
 包检查会验证运行时和声明闭包、示例、治理文件、截图、source map、外部依赖声明、绝对路径、
@@ -359,7 +360,7 @@ dsh plugin --profile web add -w ./dist/dsh-agent-team-gui-1.2.0.tgz
 
 可以在 DeepSeek Harness 中直接发送这一句话：
 
-> 按照 https://github.com/toolclub/dsh-agent-team-gui 的安装说明，把 v1.2.0 预编译发布包
+> 按照 https://github.com/toolclub/dsh-agent-team-gui 的安装说明，把 v1.3.0 预编译发布包
 > 安装到 Web profile；重启 Web，验证组合配置，并汇报实际安装的插件和 DSH 版本。
 
 ## 模型工具和公开 Service
