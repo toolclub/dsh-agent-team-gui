@@ -73,7 +73,7 @@ Stop and restart an already-running DSH Web process after installing or upgradin
 **Settings → Teams**. If a plugin marketplace chooses Git installation and fails, use the direct
 release command above; see [installation troubleshooting](docs/first-team.md#installation-troubleshooting).
 
-DSH `0.1.7-rc.2` is outside this release's declared host range; successful package installation does not establish runtime support. The Node engine range is not a claim that every newer Node/DSH combination has been tested.
+DSH `0.1.7-rc.2` is outside this release's declared host range; its installer rejects v1.3.0's peer ranges and rolls back the installation (reproduced on macOS arm64, Node 26.5.0, pnpm 12.6.0). Do not treat a change of installation source as runtime support. The Node engine range is not a claim that every newer Node/DSH combination has been tested.
 
 For DSH Plugin Hub, use version **1.5.2** or later with a refreshed catalog. Hub 1.4.8 does not have the release-package channel. If the catalog still selects Git, use the direct command above. Hub caches the catalog for one hour and can reuse stale data when a refresh fails.
 
