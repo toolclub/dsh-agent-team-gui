@@ -14,7 +14,7 @@ least one working provider/model route. DSH compatibility is declared as `>=0.1.
 the v1.3.0 release and current CI use DSH `0.1.5-rc.1`.
 
 ```sh
-dsh plugin --profile web add -w https://github.com/toolclub/dsh-agent-team-gui/releases/download/v1.3.0/dsh-agent-team-gui-1.3.0.tgz
+dsh plugin --profile web add https://github.com/toolclub/dsh-agent-team-gui/releases/download/v1.3.0/dsh-agent-team-gui-1.3.0.tgz
 dsh --profile web
 ```
 
@@ -132,6 +132,8 @@ the lead model's final answer after team handoff.
 | Symptom | Next step |
 | --- | --- |
 | `dsh` is not found | Use the launcher for your working Harness. For npm, substitute `npx @deepseek-ai/dsh@0.1.5-rc.1` for `dsh`; from source, use `pnpm --dir /absolute/path/to/deepseek-harness dsh`. Use the same launcher for install and startup. |
+| `ERR_PNPM_GIT_DEP_PREPARE_NOT_ALLOWED` | Git dependency preparation was blocked; this error alone does not prove a native-module problem. Use the compiled Release URL. Hub 1.4.8 lacks that channel; use Hub 1.5.2 or later with a refreshed catalog, or the direct command. |
+| DSH `0.1.7-rc.2` | Outside v1.3.0's declared `>=0.1.5-rc.1 <0.1.6-0` host range. Installation success does not establish runtime support. |
 | Marketplace Git install fails | Install the compiled Release URL above directly. If the failed Git dependency remains, remove it with `dsh plugin --profile web remove dsh-agent-team-gui`, then retry the release command. |
 | Release download fails | Download the `.tgz` from [v1.3.0 Releases](https://github.com/toolclub/dsh-agent-team-gui/releases/tag/v1.3.0), then install its local absolute path. |
 | Teams are missing or Host/client versions disagree | Confirm the Web profile, restart the DSH process, and refresh the browser. Record both plugin and DSH versions. |

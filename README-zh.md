@@ -61,13 +61,17 @@ DSH provider/model 路由。仓库 CI 当前使用 DSH `0.1.5-rc.1`。
 直接安装 **v1.3.0 预编译发布包**：
 
 ```sh
-dsh plugin --profile web add -w https://github.com/toolclub/dsh-agent-team-gui/releases/download/v1.3.0/dsh-agent-team-gui-1.3.0.tgz
+dsh plugin --profile web add https://github.com/toolclub/dsh-agent-team-gui/releases/download/v1.3.0/dsh-agent-team-gui-1.3.0.tgz
 dsh --profile web
 ```
 
 这个发布包已包含 Host 和浏览器代码，不需要为插件授权 Git `prepare` 构建。
 如果 DSH Web 已经运行，安装或更新后重启该进程，再刷新页面。打开 **Settings → 小队**
 即可看到**小队 / 成员库 / 配方与数据**三个页签。
+
+DSH `0.1.7-rc.2` 超出此版本声明的宿主范围；安装成功不代表运行兼容。Node engines 的范围也不代表所有更新的 Node/DSH 组合均已验证。
+
+使用 DSH Plugin Hub 时，建议 **1.5.2** 或更高版本并刷新目录；Hub 1.4.8 没有预编译 Release 安装通道。若目录仍选择 Git，请直接执行上面的命令。Hub 目录缓存为一小时，刷新失败时还可能继续使用旧缓存。
 
 > [!TIP]
 > 如果终端找不到 `dsh`，克隆 Harness 源码不会自动安装全局命令。在 Harness 仓库中

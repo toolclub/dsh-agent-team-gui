@@ -65,13 +65,17 @@ Node.js `>=22.19.0 <23` or `>=24.0.0`, and pnpm. Declared DSH compatibility is
 so installation does not run this plugin's Git `prepare` build or require its `allowBuilds` entry.
 
 ```sh
-dsh plugin --profile web add -w https://github.com/toolclub/dsh-agent-team-gui/releases/download/v1.3.0/dsh-agent-team-gui-1.3.0.tgz
+dsh plugin --profile web add https://github.com/toolclub/dsh-agent-team-gui/releases/download/v1.3.0/dsh-agent-team-gui-1.3.0.tgz
 dsh --profile web
 ```
 
 Stop and restart an already-running DSH Web process after installing or upgrading. Then open
 **Settings → Teams**. If a plugin marketplace chooses Git installation and fails, use the direct
 release command above; see [installation troubleshooting](docs/first-team.md#installation-troubleshooting).
+
+DSH `0.1.7-rc.2` is outside this release's declared host range; successful package installation does not establish runtime support. The Node engine range is not a claim that every newer Node/DSH combination has been tested.
+
+For DSH Plugin Hub, use version **1.5.2** or later with a refreshed catalog. Hub 1.4.8 does not have the release-package channel. If the catalog still selects Git, use the direct command above. Hub caches the catalog for one hour and can reuse stale data when a refresh fails.
 
 [Release notes and checksum](https://github.com/toolclub/dsh-agent-team-gui/releases/tag/v1.3.0) ·
 [Git/source installation](#git-source-installation)

@@ -19,7 +19,7 @@ Node.js `>=22.19.0 <23` 或 `>=24.0.0`。Node.js 23 不在支持范围内。
 node --version
 pnpm --version
 dsh --version
-dsh plugin --profile web add -w https://github.com/toolclub/dsh-agent-team-gui/releases/download/v1.1.1/dsh-agent-team-gui-1.1.1.tgz
+dsh plugin --profile web add https://github.com/toolclub/dsh-agent-team-gui/releases/download/v1.3.0/dsh-agent-team-gui-1.3.0.tgz
 dsh --profile web
 ```
 
@@ -156,10 +156,12 @@ README 启动仅供本机访问的静态服务并检查页面，避免把 `file:
 
 | 现象 | 处理方式 |
 | --- | --- |
+| `ERR_PNPM_GIT_DEP_PREPARE_NOT_ALLOWED` | Git 依赖的 prepare 构建被阻止，此错误本身不能证明是原生模块问题。使用预编译发布包；Hub 1.4.8 没有 Release 通道，请使用 Hub 1.5.2 或更高版本并刷新目录，或直接执行发布包安装命令。 |
+| DSH `0.1.7-rc.2` | 超出 v1.3.0 声明的 `>=0.1.5-rc.1 <0.1.6-0` 宿主范围；安装成功不代表运行兼容。 |
 | `dsh: command not found` | 克隆源码不会自动创建全局命令。在 Harness 仓库运行 `pnpm dsh --version`；本文的 `dsh ...` 可替换为 `pnpm --dir /absolute/path/to/deepseek-harness dsh ...` |
 | Node 版本不支持 | 使用 Node `>=22.19.0 <23` 或 `>=24.0.0`；不要使用 Node 23 |
-| 安装后看不到“小队”或提示前后端版本不一致 | 确认安装到 `web` profile，重启 DSH 进程并刷新浏览器；记录插件版本 `1.1.0` 和实际 DSH 版本 |
-| 发布包下载失败 | 从 [v1.1.1 Release](https://github.com/toolclub/dsh-agent-team-gui/releases/tag/v1.1.1) 下载 `.tgz`，然后运行 `dsh plugin --profile web add -w /absolute/path/to/dsh-agent-team-gui-1.1.1.tgz`；或使用下方固定 Git tag |
+| 安装后看不到“小队”或提示前后端版本不一致 | 确认安装到 `web` profile，重启 DSH 进程并刷新浏览器；记录实际插件和 DSH 版本 |
+| 发布包下载失败 | 从 [v1.3.0 Release](https://github.com/toolclub/dsh-agent-team-gui/releases/tag/v1.3.0) 下载 `.tgz`，然后运行 `dsh plugin --profile web add -w /absolute/path/to/dsh-agent-team-gui-1.3.0.tgz`；或使用下方固定 Git tag |
 | 预览一直显示缺少路由 | 先在 DSH 配置可用模型，再映射每个缺失路由；导入后到“成员库”核对具体模型 |
 | 确认导入不可用，或提示预览失效 | 完成所有映射，等待自动预览结束；定义在其他窗口变化后，重新点击“预览” |
 | 发消息没有运行小队 | 检查“本对话选择小队”、正确的小队选择，以及“仅下一条消息”；首跑将使用方式改为“Host 强制派工”、派工策略改为“执行已派任务”、成员选择改为“全部成员”并保存 |
@@ -178,7 +180,7 @@ dsh --profile web --dump-config
 需要从 Git 安装时，固定到同一个版本：
 
 ```sh
-dsh plugin --profile web add -w github:toolclub/dsh-agent-team-gui#v1.1.1
+dsh plugin --profile web add -w github:toolclub/dsh-agent-team-gui#v1.3.0
 ```
 
 Git 安装需要执行 `prepare` 构建。pnpm 10 或更高版本可能提示构建授权；在它提示的 Web
