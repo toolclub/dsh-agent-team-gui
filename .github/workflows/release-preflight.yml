@@ -34,7 +34,12 @@ jobs:
         with:
           node-version: 22.19.0
           cache: pnpm
-      - run: npm install --global @deepseek-ai/dsh@0.1.5-rc.1
+      - name: Install isolated DSH CLI
+        shell: bash
+        run: |
+          cli_dir="$RUNNER_TEMP/dsh-smoke-cli"
+          npm install --prefix "$cli_dir" --no-audit --no-fund @deepseek-ai/dsh@0.1.5-rc.1
+          printf 'DSH_BIN=%s/node_modules/.bin/dsh\n' "$cli_dir" >> "$GITHUB_ENV"
       - name: Resolve release identity
         id: release
         shell: bash

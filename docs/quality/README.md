@@ -127,6 +127,13 @@ and runtime gates remain authoritative and do not delegate installation safety t
 
 ## CI evidence
 
+CI installs the pinned DSH CLI into a job-local npm prefix and passes its absolute launcher as
+`DSH_BIN`. Keep this separate from global npm installation: with the current 0.1.5 dependency
+resolution, the global layout can contain multiple `dsh-win32-process` copies sharing Koffi.
+Their duplicate `DSH_STARTUPINFOW` registration prevents `dsh-sandbox-local` from loading, including
+on Linux. The job-local layout avoids that conflict without disabling sandbox plugins, changing
+host versions, or weakening the plugin's peer range. Both normal CI and release preflight use it.
+
 - `.github/workflows/ci.yml` runs Node 22.19 and Node 24 quality lanes, a fresh-profile browser
   lane, a pinned GitHub-SHA installation on every main push, and the supplemental doctor.
 - `.github/workflows/release-preflight.yml` rejects a package/tag mismatch, resolves the checkout to

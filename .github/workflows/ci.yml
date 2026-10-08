@@ -60,7 +60,12 @@ jobs:
           node-version: 22.19.0
           cache: pnpm
       - run: pnpm install --frozen-lockfile --ignore-scripts
-      - run: npm install --global @deepseek-ai/dsh@0.1.5-rc.1
+      - name: Install isolated DSH CLI
+        shell: bash
+        run: |
+          cli_dir="$RUNNER_TEMP/dsh-smoke-cli"
+          npm install --prefix "$cli_dir" --no-audit --no-fund @deepseek-ai/dsh@0.1.5-rc.1
+          printf 'DSH_BIN=%s/node_modules/.bin/dsh\n' "$cli_dir" >> "$GITHUB_ENV"
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm run smoke:install
         env:
@@ -103,7 +108,12 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22.19.0
-      - run: npm install --global @deepseek-ai/dsh@0.1.5-rc.1
+      - name: Install isolated DSH CLI
+        shell: bash
+        run: |
+          cli_dir="$RUNNER_TEMP/dsh-smoke-cli"
+          npm install --prefix "$cli_dir" --no-audit --no-fund @deepseek-ai/dsh@0.1.5-rc.1
+          printf 'DSH_BIN=%s/node_modules/.bin/dsh\n' "$cli_dir" >> "$GITHUB_ENV"
       - run: pnpm run smoke:install
         env:
           API_VERSION: 6
