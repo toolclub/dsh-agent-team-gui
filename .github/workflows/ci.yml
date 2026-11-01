@@ -76,7 +76,7 @@ jobs:
           SMOKE_SCREENSHOT_DIR: .artifacts/browser-smoke
       - name: Upload isolated diagnostics on failure
         if: failure()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: hermetic-diagnostics-${{ github.sha }}
           path: /tmp/dsh-agent-team-gui-*
@@ -84,7 +84,7 @@ jobs:
           retention-days: 7
       - name: Upload browser evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: browser-smoke-${{ github.sha }}
           path: .artifacts/browser-smoke
@@ -120,7 +120,7 @@ jobs:
           PLUGIN_SPEC: github:toolclub/dsh-agent-team-gui#${{ github.sha }}
       - name: Upload exact-install diagnostics on failure
         if: failure()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: exact-install-diagnostics-${{ github.sha }}
           path: /tmp/dsh-agent-team-gui-*
